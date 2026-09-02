@@ -1,0 +1,13 @@
+# Normalise to LF in the repository. Development happens on Windows but the
+# image runs on Alpine: a shell script or Dockerfile checked out with CRLF
+# fails there with "bad interpreter: no such file or directory".
+* text=auto eol=lf
+
+*.sh      text eol=lf
+Dockerfile text eol=lf
+*.yml     text eol=lf
+*.sql     text eol=lf
+
+# Generated at build time; keep diffs quiet.
+public/version.json linguist-generated=true
+lib/schema.generated.js linguist-generated=true
