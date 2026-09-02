@@ -1,0 +1,18 @@
+node_modules/
+.next/
+out/
+
+# Runtime data — never committed. Holds field.db, uploads/, apk/
+data/
+
+# Generated at build time by scripts/version.js
+public/version.json
+
+# Secrets (dok 08 §4)
+.env
+.env.*
+!.env.example
+
+*.log
+.DS_Store
+Thumbs.db
