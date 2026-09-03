@@ -55,6 +55,51 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Built and booted here before anything is published, so a container that
+      # compiles but dies on startup never reaches the VPS. This is what makes a
+      # broken image a red CI run instead of a broken deploy: `docker build`
+      # succeeding says nothing about whether the server comes up, and the
+      # native better-sqlite3 binding is only really exercised at runtime.
+      - name: Build image and smoke test it
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: sru-field-api:smoke
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Container must boot and serve
+        run: |
+          set -euo pipefail
+          docker run -d --name smoke -p 3999:3000 \
+            -e SESSION_SECRET=0000000000000000000000000000000000000000000000000000000000000000 \
+            sru-field-api:smoke
+
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3999/api/health >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+
+          if [ "${ready:-0}" != "1" ]; then
+            echo "::error::container did not become healthy"
+            docker logs smoke
+            exit 1
+          fi
+
+          echo "health:  $(curl -fsS http://127.0.0.1:3999/api/health)"
+          echo "version: $(curl -fsS http://127.0.0.1:3999/api/version)"
+
+          # Proves the database layer works inside the image: this fails if the
+          # native binding did not survive the standalone build.
+          curl -fsS -X POST http://127.0.0.1:3999/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"shift_a","password":"wrong"}' \
+            -o /dev/null -w 'login reachable, HTTP %{http_code}\n' || true
+
+          docker rm -f smoke
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:

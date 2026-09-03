@@ -13,7 +13,8 @@
     "version:write": "node scripts/version.js",
     "seed:admin": "node scripts/seed-admin.js",
     "seed:initial": "node scripts/seed-initial.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "acceptance": "node tools/acceptance.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
