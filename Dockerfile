@@ -58,6 +58,24 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
+# The first-time seed runs here via `docker exec` (doc 09 §3), and it is the one
+# thing in this image that is not the Next server. Standalone output compiles
+# the route handlers and keeps only what they load at runtime — of lib/ that is
+# a single file — so the seed scripts and their source imports have to be copied
+# explicitly. Without these three lines the documented seed fails on a brand new
+# deploy, at the exact moment there is no admin account to log in and fix it.
+#
+# Verify after changing anything here (see docs/VPS-SETUP.md step 9):
+#   docker run --rm -v <vol>:/app/data -e ... <image> node scripts/seed-admin.js
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
+
+# bcryptjs is bundled into the compiled server, so tracing leaves no copy in
+# node_modules for lib/auth.js to import. Pure JS, so it is safe to take from
+# the deps stage as-is — unlike better-sqlite3, which is native and is already
+# present because Next cannot bundle it (see serverExternalPackages).
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/bcryptjs ./node_modules/bcryptjs
+
 # Created up front so the container still starts when the host volume is a bare
 # empty directory.
 RUN mkdir -p /app/data/uploads /app/data/apk && chown -R nextjs:nodejs /app/data
