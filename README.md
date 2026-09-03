@@ -163,6 +163,49 @@ curl -s "localhost:3000/api/pull?since=6" -H "Authorization: Bearer $TOKEN"
 nothing is sent. If every pull returns the full master, the delta filter is
 broken (see doc 05 §2).
 
+### 8. Upload a photo
+
+Any real JPEG will do:
+
+```bash
+curl -s -X POST localhost:3000/api/upload \
+  -H "Authorization: Bearer $TOKEN" -F "file=@/path/to/photo.jpg"
+```
+
+```json
+{"path":"uploads/6f1c…-….jpg"}
+```
+
+The filename you sent is discarded — the stored name is a fresh UUID. Fetch it
+back in a browser tab (the query needs your token, so use curl and open the
+file, or use the admin cookie once task 8 lands):
+
+```bash
+curl -s "localhost:3000/api/photo?path=uploads/<uuid>.jpg" \
+  -H "Authorization: Bearer $TOKEN" -o out.jpg && start out.jpg
+```
+
+Now try to abuse it. Rename an HTML file to `.jpg` and upload it:
+
+```bash
+printf '<html><script>alert(1)</script></html>' > evil.jpg
+curl -s -X POST localhost:3000/api/upload \
+  -H "Authorization: Bearer $TOKEN" -F "file=@evil.jpg"
+```
+
+`415` — the type is decided by the file's leading bytes, not its name or its
+declared Content-Type. Nothing is written to disk.
+
+And traversal:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" \
+  "localhost:3000/api/photo?path=uploads/../../etc/passwd" -H "Authorization: Bearer $TOKEN"
+```
+
+`404` — the same answer given for a file that simply is not there, so probing
+reveals nothing about the filesystem.
+
 ## Looking at the data directly
 
 ```bash
