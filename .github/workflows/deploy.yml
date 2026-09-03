@@ -1,0 +1,81 @@
+name: build and publish
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: hfzndev/sru-field-api
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # MANDATORY. scripts/version.js runs `git describe --tags`, which needs
+          # the full history and the tags. The default shallow clone produces a
+          # version.json with no usable version, and nothing fails loudly until
+          # someone asks which build is running (doc 09 §2).
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm test
+
+      # Runs before the image build so a broken build fails here, where the log
+      # is readable, rather than inside a Docker layer.
+      - run: npm run build
+
+      - name: Verify version.json carries real git metadata
+        run: |
+          cat public/version.json
+          node -e "const v=require('./public/version.json'); if(!v.version||v.commit==='nogit'){console.error('version.json has no git metadata — check fetch-depth');process.exit(1)}"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # :latest is what the VPS watcher polls; :sha is what a rollback
+          # targets, which is why every build publishes both (doc 09 §7).
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+# Deliberately no deploy step.
+#
+# An SSH or webhook job from the runner does not work here and this is settled,
+# not undecided: Cloudflare challenges the runner's IP and the VPS firewall
+# drops anything that is not from Cloudflare, so the runner cannot reach the
+# host by either route (doc 09 §2).
+#
+# The VPS pulls instead. A cron on the host compares the GHCR digest for :latest
+# against the running container every 3 minutes and runs `docker compose pull &&
+# up -d` when they differ — all outbound, nothing to punch through. Deploy lands
+# within about 3 minutes of this workflow finishing. See ops/field-deploy-watch.sh.

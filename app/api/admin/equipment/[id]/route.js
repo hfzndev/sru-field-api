@@ -20,7 +20,8 @@ export async function PUT(request, context) {
     const parsed = parse(equipmentSchema, body.data);
     if (!parsed.ok) return validationError(parsed.details);
 
-    const { tagNumber, name, unitKey, location, status, isActive } = parsed.data;
+    // `status` is intentionally not destructured — see the note on the update below.
+    const { tagNumber, name, unitKey, location, isActive } = parsed.data;
     if (db.prepare('SELECT id FROM equipment WHERE tag_number = ? AND id != ?').get(tagNumber, id)) {
       return conflict('DUPLICATE_TAG', `Tag "${tagNumber}" sudah dipakai`);
     }

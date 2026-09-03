@@ -1,29 +1,21 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../_lib/api';
+import { useLoader } from '../_lib/useLoader';
 import { STATUS_LABEL, formatDateTime } from '../_lib/format';
 import { Alert, Chip, ConfirmDialog, Dialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
 
 const STATUSES = ['NORMAL', 'STANDBY', 'ON_REPAIR', 'NEED_REPAIR'];
 
 export default function EquipmentPage() {
-  const [equipment, setEquipment] = useState(null);
-  const [error, setError] = useState('');
+  const { data: equipment, error, reload: load } = useLoader(
+    async () => (await api.get('/api/admin/equipment')).equipment,
+  );
   const [toast, setToast] = useState('');
   const [editing, setEditing] = useState(null);
   const [changing, setChanging] = useState(null);
   const [removing, setRemoving] = useState(null);
-
-  const load = useCallback(async () => {
-    try {
-      setEquipment((await api.get('/api/admin/equipment')).equipment);
-    } catch (err) {
-      setError(err.message);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   async function remove(item) {
     await api.del(`/api/admin/equipment/${item.id}`);

@@ -1,0 +1,41 @@
+# Deployment for the VPS (doc 09 §1).
+#
+# SRU APP is untouched by this file: different container, different port,
+# different volume, different database. The only thing shared is the host.
+
+services:
+  sru-field-api:
+    image: ghcr.io/hfzndev/sru-field-api:latest
+    container_name: sru-field-api
+    restart: unless-stopped
+
+    # Bound to loopback only. nginx terminates TLS and proxies to it; the port
+    # is never reachable from outside the host (doc 09 §1).
+    ports:
+      - "127.0.0.1:3003:3000"
+
+    # field.db, uploads/ and apk/ all live here. This is the only state that
+    # matters — everything else is rebuilt from the image.
+    volumes:
+      - ./data:/app/data
+
+    # 0600 on the VPS, never in the repository (doc 08 §4).
+    env_file:
+      - .env.field
+
+    environment:
+      NODE_ENV: production
+      DATABASE_PATH: /app/data/field.db
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 60s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

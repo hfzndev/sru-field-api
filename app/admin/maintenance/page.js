@@ -1,33 +1,25 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../_lib/api';
+import { useLoader } from '../_lib/useLoader';
 import { STATUS_LABEL, formatDate } from '../_lib/format';
 import { Alert, Chip, Dialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
 
 const TASK_STATUSES = ['OPEN', 'IN_PROGRESS', 'DONE', 'CANCELLED'];
 
 export default function MaintenancePage() {
-  const [tasks, setTasks] = useState(null);
-  const [equipment, setEquipment] = useState([]);
-  const [error, setError] = useState('');
+  const { data, error, reload: load } = useLoader(async () => {
+    const [taskData, equipmentData] = await Promise.all([
+      api.get('/api/admin/tasks'),
+      api.get('/api/admin/equipment'),
+    ]);
+    return { tasks: taskData.tasks, equipment: equipmentData.equipment.filter((e) => e.isActive) };
+  });
+  const tasks = data?.tasks ?? null;
+  const equipment = data?.equipment ?? [];
   const [toast, setToast] = useState('');
   const [editing, setEditing] = useState(null);
-
-  const load = useCallback(async () => {
-    try {
-      const [taskData, equipmentData] = await Promise.all([
-        api.get('/api/admin/tasks'),
-        api.get('/api/admin/equipment'),
-      ]);
-      setTasks(taskData.tasks);
-      setEquipment(equipmentData.equipment.filter((e) => e.isActive));
-    } catch (err) {
-      setError(err.message);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   if (error && !tasks) return <Alert error={error} />;
   if (!tasks) return <Loading />;

@@ -1,28 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../_lib/api';
+import { useLoader } from '../_lib/useLoader';
 import { mm } from '../_lib/format';
 import { Alert, ConfirmDialog, Dialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
 
 const BLANK = { code: '', name: '', heightMm: '', dcsTag: '', isActive: true };
 
 export default function TanksPage() {
-  const [tanks, setTanks] = useState(null);
-  const [error, setError] = useState('');
+  const { data: tanks, error, reload: load } = useLoader(
+    async () => (await api.get('/api/admin/tanks')).tanks,
+  );
   const [toast, setToast] = useState('');
   const [editing, setEditing] = useState(null);
   const [removing, setRemoving] = useState(null);
-
-  const load = useCallback(async () => {
-    try {
-      setTanks((await api.get('/api/admin/tanks')).tanks);
-    } catch (err) {
-      setError(err.message);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   async function remove(tank) {
     await api.del(`/api/admin/tanks/${tank.id}`);

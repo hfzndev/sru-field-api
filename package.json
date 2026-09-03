@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "SRU Field App — backend API + admin web (offline-first field data capture, IPAL Sulfur Cilacap)",
+  "description": "SRU Field App \u2014 backend API + admin web (offline-first field data capture, IPAL Sulfur Cilacap)",
   "scripts": {
     "dev": "node scripts/version.js && next dev -p 3000",
     "build": "node scripts/version.js && next build",
@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "version:write": "node scripts/version.js",
     "seed:admin": "node scripts/seed-admin.js",
-    "seed:initial": "node scripts/seed-initial.js"
+    "seed:initial": "node scripts/seed-initial.js",
+    "lint": "eslint ."
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -23,6 +24,8 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.4",
     "vitest": "^3.0.0"
   },
   "engines": {

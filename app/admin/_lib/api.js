@@ -16,6 +16,9 @@ async function request(url, options = {}) {
   });
 
   if (response.status === 401 && typeof window !== 'undefined') {
+    // A full page load, not a client-side route change: the session is gone, so
+    // every cached page state is stale and should be discarded with it.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = '/admin/login';
     // Never resolves: the page is navigating away, and letting callers continue
     // would flash an error before the redirect lands.

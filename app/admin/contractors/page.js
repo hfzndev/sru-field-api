@@ -1,25 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../_lib/api';
+import { useLoader } from '../_lib/useLoader';
 import { Alert, ConfirmDialog, Dialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
 
 export default function ContractorsPage() {
-  const [contractors, setContractors] = useState(null);
-  const [error, setError] = useState('');
+  const { data: contractors, error, reload: load } = useLoader(
+    async () => (await api.get('/api/admin/contractors')).contractors,
+  );
   const [toast, setToast] = useState('');
   const [editing, setEditing] = useState(null);
   const [removing, setRemoving] = useState(null);
-
-  const load = useCallback(async () => {
-    try {
-      setContractors((await api.get('/api/admin/contractors')).contractors);
-    } catch (err) {
-      setError(err.message);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   async function remove(contractor) {
     await api.del(`/api/admin/contractors/${contractor.id}`);

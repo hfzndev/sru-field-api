@@ -1,6 +1,6 @@
 import { getDb } from '@/lib/db';
 import { authenticateDevice } from '@/lib/auth';
-import { clientIp, readJson, serverError, tooManyRequests, unauthorized, validationError } from '@/lib/http';
+import { readJson, serverError, tooManyRequests, unauthorized, validationError } from '@/lib/http';
 import { limitFor } from '@/lib/ratelimit';
 import { isEmptyPayload, processSync } from '@/lib/sync';
 import { parse, syncSchema } from '@/lib/validation';

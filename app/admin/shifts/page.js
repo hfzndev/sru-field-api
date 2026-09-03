@@ -1,26 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../_lib/api';
+import { useLoader } from '../_lib/useLoader';
 import { Alert, ConfirmDialog, Dialog, Field, Loading, PageHead, Toast } from '../_components/ui';
 
 export default function ShiftsPage() {
-  const [shifts, setShifts] = useState(null);
-  const [error, setError] = useState('');
+  const { data: shifts, error, reload: load } = useLoader(
+    async () => (await api.get('/api/admin/shifts')).shifts,
+  );
   const [toast, setToast] = useState('');
   const [passwordFor, setPasswordFor] = useState(null);
   const [crewFor, setCrewFor] = useState(null);
   const [removingCrew, setRemovingCrew] = useState(null);
-
-  const load = useCallback(async () => {
-    try {
-      setShifts((await api.get('/api/admin/shifts')).shifts);
-    } catch (err) {
-      setError(err.message);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   async function removeCrew() {
     const { shiftId, crew } = removingCrew;

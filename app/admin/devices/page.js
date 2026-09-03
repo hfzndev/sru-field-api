@@ -1,27 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../_lib/api';
+import { useLoader } from '../_lib/useLoader';
 import { formatDateTime, relative } from '../_lib/format';
 import { Alert, ConfirmDialog, Empty, Loading, PageHead, Toast } from '../_components/ui';
 
 export default function DevicesPage() {
-  const [devices, setDevices] = useState(null);
-  const [version, setVersion] = useState(null);
-  const [error, setError] = useState('');
+  const { data, error, reload: load } = useLoader(async () => ({
+    devices: (await api.get('/api/admin/devices')).devices,
+    version: await api.get('/api/version').catch(() => null),
+  }));
+  const devices = data?.devices ?? null;
+  const version = data?.version ?? null;
   const [toast, setToast] = useState('');
   const [revoking, setRevoking] = useState(null);
-
-  const load = useCallback(async () => {
-    try {
-      setDevices((await api.get('/api/admin/devices')).devices);
-      setVersion(await api.get('/api/version').catch(() => null));
-    } catch (err) {
-      setError(err.message);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   async function revoke(device) {
     await api.post(`/api/admin/devices/${device.id}/revoke`);

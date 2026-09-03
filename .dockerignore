@@ -1,0 +1,27 @@
+# NOTE: .git is deliberately NOT excluded.
+#
+# scripts/version.js runs `git describe` inside the builder to produce
+# public/version.json. Excluding .git here is one of the four ways that file
+# silently comes out empty, and the symptom only appears later as an admin
+# footer showing no version and /api/version failing. Leave it in.
+
+node_modules
+.next
+out
+
+# Runtime state belongs to the volume, never the image.
+data
+
+.env
+.env.*
+!.env.example
+
+*.log
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Tests and lint run in CI, before the image is built.
+test
+coverage
