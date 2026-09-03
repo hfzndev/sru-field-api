@@ -206,6 +206,75 @@ curl -s -o /dev/null -w "%{http_code}\n" \
 `404` — the same answer given for a file that simply is not there, so probing
 reveals nothing about the filesystem.
 
+## Testing the operator side
+
+The mobile app is Phase 2 and does not exist yet. `tools/operator-sim.js` stands
+in for it: same protocol, same offline queue, and it computes the tape-length
+suggestion client-side exactly as the handset will.
+
+```bash
+node tools/operator-sim.js help
+node tools/operator-sim.js login shift_a rahasia123
+```
+
+### The measurement flow
+
+```bash
+node tools/operator-sim.js suggest 93T-401 5000
+```
+
+With no history it suggests `7953 − 5000`. Once readings exist it corrects for
+the tank's own drift — after one reading at +87 mm it suggests **2 866 mm**
+rather than 2 953. That 87 mm is the difference between one pull and three.
+
+```bash
+node tools/operator-sim.js measure 93T-401 5000 2901 35 2
+```
+
+Queues the reading and shows a local preview. The preview is not authoritative:
+the server recomputes on sync, and the simulator prints a warning if the two
+ever disagree.
+
+### Proving it survives no signal
+
+Stop the server, then keep working:
+
+```bash
+node tools/operator-sim.js measure 93T-401 5000 2901 35
+node tools/operator-sim.js activity OPERATOR "buka valve drain kolom A"
+node tools/operator-sim.js cleaning-start "lantai area U-93"
+node tools/operator-sim.js sync      # fails; queue is untouched
+node tools/operator-sim.js status    # everything still there
+```
+
+Start the server, `sync` again, and it all lands. Press `sync` a third time —
+nothing duplicates.
+
+### The cases worth seeing fail
+
+```bash
+node tools/operator-sim.js measure 93T-401 5000 2901 100
+node tools/operator-sim.js sync
+```
+
+One record rejected, its siblings accepted, and the badge still counts the
+rejected one as unsent — an operator must never be told their work arrived when
+it did not.
+
+Two-stage cleaning:
+
+```bash
+node tools/operator-sim.js cleaning-start "lantai U-93"
+node tools/operator-sim.js sync                      # lands as IN_PROGRESS
+node tools/operator-sim.js cleaning-finish <clientId>
+node tools/operator-sim.js sync                      # same row becomes DONE
+```
+
+Check the database: still one row, not two.
+
+Use `SRU_DEVICE=HP-2` to simulate a second handset on the same shift account,
+which is how three phones share one login in the field.
+
 ## The admin web
 
 Open <http://localhost:3000/admin> and sign in with the admin account seeded
