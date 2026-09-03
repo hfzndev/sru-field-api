@@ -1,7 +1,7 @@
 import { conflict, idParam, notFound, recordAction, withAdmin } from '@/lib/admin';
 import { stampMaster } from '@/lib/dataversion';
 import { readJson, validationError } from '@/lib/http';
-import { equipmentStatusSchema, parse } from '@/lib/validation';
+import { STATUS_DISPLAY, equipmentStatusSchema, parse } from '@/lib/validation';
 import { serializeEquipment } from '../../route.js';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +33,9 @@ export async function POST(request, context) {
     // Re-asserting the current status is rejected rather than silently logged:
     // it would add a history entry recording no change at all.
     if (existing.status === status) {
-      return conflict('STATUS_UNCHANGED', `Equipment sudah berstatus ${status}`);
+      // Display label, not the storage code — an admin should never be shown
+      // the raw enum (doc 02 §1.2).
+      return conflict('STATUS_UNCHANGED', `Equipment sudah berstatus ${STATUS_DISPLAY[status]}`);
     }
 
     db.transaction(() => {

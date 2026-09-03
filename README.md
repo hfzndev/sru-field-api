@@ -206,6 +206,27 @@ curl -s -o /dev/null -w "%{http_code}\n" \
 `404` — the same answer given for a file that simply is not there, so probing
 reveals nothing about the filesystem.
 
+## The admin web
+
+Open <http://localhost:3000/admin> and sign in with the admin account seeded
+above. Eight tabs: Dashboard, Tangki, Equipment, Kontraktor, Shift & Crew,
+Maintenance, Data Lapangan and Devices.
+
+It is mobile-first because a foreman uses it on a phone in the plant: bottom tab
+bar and cards below 900px, top nav and tables from 1024px. Resize the window to
+375px wide and everything stays reachable with one thumb.
+
+Worth trying:
+
+- **Equipment → Ubah status.** Save is disabled until you type a reason, and
+  re-selecting the status the item already has is refused. The reason is what
+  the next shift reads.
+- **Data Lapangan.** Filter by type, shift, and date range; the Export CSV
+  button exports exactly what the filters show. Cleaning records show before
+  and after photos side by side.
+- **Devices.** App version per handset, recorded at login — the only way to see
+  which phones are still on an old APK, since there is no store.
+
 ## Looking at the data directly
 
 ```bash
