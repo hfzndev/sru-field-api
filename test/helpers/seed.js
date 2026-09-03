@@ -38,6 +38,11 @@ export function cleanupTempDbs() {
   delete process.env.DATABASE_PATH;
 }
 
+export function seedAdmin(db, username = 'admin') {
+  return db.prepare('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)')
+    .run(username, TEST_PASSWORD_HASH).lastInsertRowid;
+}
+
 export function seedShiftAccount(db, { code = 'SHIFT_A', displayName = 'Shift A', isActive = 1 } = {}) {
   const info = db.prepare(`
     INSERT INTO shift_accounts (code, display_name, password_hash, is_active)
