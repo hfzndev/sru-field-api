@@ -3,7 +3,12 @@ node_modules/
 out/
 
 # Runtime data — never committed. Holds field.db, uploads/, apk/
-data/
+#
+# Anchored with a leading slash. Written as bare `data/` it matches a directory
+# named data at ANY depth, which silently excluded app/api/admin/data/ and
+# app/admin/data/ — the whole Data Lapangan feature was missing from the repo
+# and only surfaced when CI ran the tests against a clean checkout.
+/data/
 
 # Generated at build time by scripts/version.js
 public/version.json
