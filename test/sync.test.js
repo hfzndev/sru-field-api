@@ -75,7 +75,7 @@ function activity(overrides = {}) {
 }
 
 function payload(parts = {}) {
-  return { readings: [], cleaning: [], activities: [], taskLogs: [], ...parts };
+  return { readings: [], cleaning: [], activities: [], taskLogs: [], equipmentStatus: [], ...parts };
 }
 
 /**
@@ -390,6 +390,113 @@ describe('task logs', () => {
   it('rejects a log for a task that does not exist', () => {
     const result = sync({ taskLogs: [taskLog({ taskId: 9999 })] });
     expect(result.errors[0].error.code).toBe('TASK_NOT_FOUND');
+  });
+});
+
+/* -------------------------------------------------- equipment status changes */
+
+describe('equipment status changes from the field', () => {
+  let equipmentId;
+  beforeEach(() => { equipmentId = seedEquipment(db, { status: 'NORMAL' }); });
+
+  function statusChange(overrides = {}) {
+    return {
+      clientId: uuid(), equipmentId, newStatus: 'NEED_REPAIR',
+      description: 'bearing berisik, getaran tinggi',
+      changedAt: '2026-09-02T03:00:00.000Z',
+      operatorName: 'Budi', shiftGroup: 'Shift A', shiftTime: 'pagi',
+      ...overrides,
+    };
+  }
+
+  it('writes the history row and moves the equipment in one transaction', () => {
+    const result = sync({ equipmentStatus: [statusChange()] });
+
+    expect(result.errors).toEqual([]);
+    expect(result.acked[0].statusChanged).toBe(true);
+
+    const log = db.prepare('SELECT * FROM equipment_status_log').get();
+    expect(log.old_status).toBe('NORMAL');
+    expect(log.new_status).toBe('NEED_REPAIR');
+    expect(log.description).toBe('bearing berisik, getaran tinggi');
+    expect(log.changed_by_name).toBe('Budi');
+    expect(log.shift_group).toBe('Shift A');
+
+    const eq = db.prepare('SELECT status, status_changed_at FROM equipment WHERE id = ?').get(equipmentId);
+    expect(eq.status).toBe('NEED_REPAIR');
+    expect(eq.status_changed_at).toBeTruthy();
+  });
+
+  it('stamps dataVersion so the other phones learn the equipment moved', () => {
+    const before = currentDataVersion(db);
+    sync({ equipmentStatus: [statusChange()] });
+    const after = currentDataVersion(db);
+
+    expect(after).toBeGreaterThan(before);
+    expect(db.prepare('SELECT data_version FROM equipment WHERE id = ?').get(equipmentId).data_version).toBe(after);
+  });
+
+  it('reads old_status from the database, not from a stale handset', () => {
+    sync({ equipmentStatus: [statusChange({ newStatus: 'ON_REPAIR' })] });
+    sync({ equipmentStatus: [statusChange({ newStatus: 'NORMAL' })] });
+
+    const logs = db.prepare('SELECT old_status, new_status FROM equipment_status_log ORDER BY id').all();
+    expect(logs[1].old_status).toBe('ON_REPAIR');
+    expect(logs[1].new_status).toBe('NORMAL');
+  });
+
+  it('is idempotent on replay — one history row, not two', () => {
+    const record = statusChange();
+    sync({ equipmentStatus: [record] });
+    const second = sync({ equipmentStatus: [record] });
+
+    expect(second.acked).toEqual([]);
+    expect(second.duplicates).toHaveLength(1);
+    expect(db.prepare('SELECT COUNT(*) n FROM equipment_status_log').get().n).toBe(1);
+  });
+
+  it('records a no-change report without touching master data (doc 05 §3)', () => {
+    // Two operators find the same fault. The second description is still worth
+    // keeping; what must not happen is a phantom master mutation.
+    sync({ equipmentStatus: [statusChange()] });
+    const version = currentDataVersion(db);
+
+    const result = sync({ equipmentStatus: [statusChange({
+      description: 'masih bocor, sudah lapor maintenance',
+    })] });
+
+    expect(result.errors).toEqual([]);
+    expect(result.acked[0].statusChanged).toBe(false);
+    expect(currentDataVersion(db)).toBe(version);
+    expect(db.prepare('SELECT COUNT(*) n FROM equipment_status_log').get().n).toBe(2);
+  });
+
+  it('rejects a blank description before anything is written', () => {
+    const parsed = parse(syncSchema, payload({ equipmentStatus: [statusChange({ description: '' })] }));
+    expect(parsed.ok).toBe(false);
+    expect(parsed.details[0].field).toBe('equipmentStatus.0.description');
+  });
+
+  it('rejects a change for equipment that does not exist', () => {
+    const result = sync({ equipmentStatus: [statusChange({ equipmentId: 9999 })] });
+    expect(result.errors[0].error.code).toBe('EQUIPMENT_NOT_FOUND');
+    expect(db.prepare('SELECT COUNT(*) n FROM equipment_status_log').get().n).toBe(0);
+  });
+
+  it('still accepts a report for equipment retired while the phone was offline', () => {
+    const retired = seedEquipment(db, { tagNumber: 'P-9102', isActive: 0 });
+    const result = sync({ equipmentStatus: [statusChange({ equipmentId: retired })] });
+    expect(result.errors).toEqual([]);
+    expect(result.acked).toHaveLength(1);
+  });
+
+  it('does not sink the rest of the batch (doc 07)', () => {
+    const result = sync({
+      equipmentStatus: [statusChange({ equipmentId: 9999 }), statusChange()],
+      readings: [reading()],
+    });
+    expect(result.errors).toHaveLength(1);
+    expect(result.acked).toHaveLength(2);
   });
 });
 

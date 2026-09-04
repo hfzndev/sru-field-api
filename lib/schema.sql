@@ -39,12 +39,16 @@ CREATE TABLE IF NOT EXISTS equipment (
 
 CREATE TABLE IF NOT EXISTS equipment_status_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  client_id TEXT,                           -- UUIDv4 bila asalnya HP; NULL bila dari admin
   equipment_id INTEGER NOT NULL,
   old_status TEXT,
   new_status TEXT NOT NULL,
   description TEXT NOT NULL,                -- alasan WAJIB
-  changed_by_name TEXT,                     -- 'Budi (Shift A Pagi)' atau 'admin'
-  changed_at TEXT DEFAULT (datetime('now'))
+  changed_by_name TEXT,                     -- 'Budi' atau 'admin'
+  shift_group TEXT DEFAULT '',              -- 'Shift A'..'Shift D' (kosong bila admin)
+  shift_time TEXT DEFAULT '',               -- pagi/sore/malam (kosong bila admin)
+  changed_at TEXT NOT NULL DEFAULT (datetime('now')),  -- jam operator/admin mengubah
+  received_at TEXT DEFAULT (datetime('now'))           -- jam server menerima (jendela 7 hari)
 );
 
 CREATE TABLE IF NOT EXISTS contractors (
@@ -198,6 +202,9 @@ CREATE INDEX IF NOT EXISTS idx_activity_shift_time ON activity_logs(shift_group,
 CREATE INDEX IF NOT EXISTS idx_cleaning_shift ON cleaning_sessions(shift_group, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tasklog_task ON maintenance_task_logs(task_id, received_at DESC);
 CREATE INDEX IF NOT EXISTS idx_eq_status_log ON equipment_status_log(equipment_id, changed_at DESC);
+-- UNIQUE tapi nullable: NULL di SQLite tidak saling bentrok, jadi baris admin
+-- (client_id NULL) bebas berulang sementara retry dari HP tetap idempoten.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_eq_status_log_client ON equipment_status_log(client_id);
 CREATE INDEX IF NOT EXISTS idx_devicetoken_account ON device_tokens(shift_account_id);
 
 -- Delta pull master (GET /api/pull?since=) — filter data_version > since

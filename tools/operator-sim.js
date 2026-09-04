@@ -320,7 +320,7 @@ async function sync(state) {
   const queued = pending(state);
   if (queued.length === 0) return console.log(`\n  ${c.dim('Tidak ada yang perlu dikirim.')}\n`);
 
-  const batch = { readings: [], cleaning: [], activities: [], taskLogs: [] };
+  const batch = { readings: [], cleaning: [], activities: [], taskLogs: [], equipmentStatus: [] };
   for (const entry of queued) batch[entry.kind].push({ clientId: entry.clientId, ...entry.record });
 
   console.log(`\n  Mengirim ${queued.length} catatan…`);

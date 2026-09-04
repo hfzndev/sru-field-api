@@ -43,7 +43,7 @@ function totalMasterRows(result) {
 
 /** Inserts field data through the real sync path so attribution is realistic. */
 function syncAs(shiftGroup, parts) {
-  const base = { readings: [], cleaning: [], activities: [], taskLogs: [] };
+  const base = { readings: [], cleaning: [], activities: [], taskLogs: [], equipmentStatus: [] };
   const parsed = parse(syncSchema, { ...base, ...parts });
   if (!parsed.ok) throw new Error(JSON.stringify(parsed.details));
   return processSync(db, parsed.data);
@@ -261,6 +261,71 @@ describe('recent window (doc 10 §2.8)', () => {
     expect(recent.activities).toHaveLength(1);
     expect(recent.cleaning).toHaveLength(1);
     expect(recent.taskLogs).toHaveLength(1);
+  });
+
+  it('refills a shift with its own equipment status changes', () => {
+    const equipmentId = seedEquipment(db, { tagNumber: 'P-9200' });
+    syncAs('Shift A', {
+      equipmentStatus: [{
+        clientId: randomUUID(), equipmentId, newStatus: 'ON_REPAIR',
+        description: 'menunggu spare part', changedAt: '2026-09-02T03:00:00.000Z',
+        operatorName: 'Budi', shiftGroup: 'Shift A', shiftTime: 'pagi',
+      }],
+    });
+
+    const own = pull(0).recent.equipmentStatus;
+    expect(own).toHaveLength(1);
+    expect(own[0].newStatus).toBe('ON_REPAIR');
+    expect(own[0].description).toBe('menunggu spare part');
+
+    // Another shift's change is not this handset's offline window to refill;
+    // the current reason reaches it on the master row instead.
+    const other = seedShiftAccount(db, { code: 'SHIFT_B', displayName: 'Shift B' });
+    expect(buildPull(db, { id: other, code: 'SHIFT_B', displayName: 'Shift B' }, 0)
+      .recent.equipmentStatus).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------- equipment status on master */
+
+describe('equipment status note (doc 02 §1.2)', () => {
+  it('carries the latest reason, whoever wrote it, on the master row', () => {
+    const equipmentId = seedEquipment(db, { tagNumber: 'P-9300' });
+
+    const before = pull(0).master.equipment.find((e) => e.id === equipmentId);
+    expect(before.statusNote).toBe('');
+
+    syncAs('Shift B', {
+      equipmentStatus: [{
+        clientId: randomUUID(), equipmentId, newStatus: 'NEED_REPAIR',
+        description: 'seal bocor', changedAt: '2026-09-02T03:00:00.000Z',
+        operatorName: 'Slamet', shiftGroup: 'Shift B', shiftTime: 'sore',
+      }],
+    });
+
+    const after = pull(0).master.equipment.find((e) => e.id === equipmentId);
+    expect(after.status).toBe('NEED_REPAIR');
+    expect(after.statusNote).toBe('seal bocor');
+    expect(after.statusChangedBy).toBe('Slamet');
+    expect(after.statusChangedAt).toBeTruthy();
+  });
+
+  it('reaches the other handsets through the delta, not a full resync', () => {
+    const equipmentId = seedEquipment(db, { tagNumber: 'P-9301' });
+    stampEverything();
+    const since = currentDataVersion(db);
+
+    syncAs('Shift A', {
+      equipmentStatus: [{
+        clientId: randomUUID(), equipmentId, newStatus: 'STANDBY',
+        description: 'dipakai bergantian dengan P-9101', changedAt: '2026-09-02T04:00:00.000Z',
+        operatorName: 'Budi', shiftGroup: 'Shift A', shiftTime: 'pagi',
+      }],
+    });
+
+    const delta = pull(since);
+    expect(totalMasterRows(delta)).toBe(1);
+    expect(delta.master.equipment[0].statusNote).toBe('dipakai bergantian dengan P-9101');
   });
 });
 

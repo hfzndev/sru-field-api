@@ -40,8 +40,9 @@ export async function POST(request, context) {
 
     db.transaction(() => {
       db.prepare(`
-        INSERT INTO equipment_status_log (equipment_id, old_status, new_status, description, changed_by_name)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO equipment_status_log
+          (equipment_id, old_status, new_status, description, changed_by_name, received_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
       `).run(id, existing.status, status, description, changedByName || username);
 
       db.prepare("UPDATE equipment SET status = ?, status_changed_at = datetime('now') WHERE id = ?")
