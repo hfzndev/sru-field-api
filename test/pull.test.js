@@ -41,12 +41,18 @@ function totalMasterRows(result) {
   return t.length + equipment.length + contractors.length + tasks.length + crew.length;
 }
 
-/** Inserts field data through the real sync path so attribution is realistic. */
+/**
+ * Inserts field data through the real sync path so attribution is realistic.
+ *
+ * `shiftGroup` is the authenticated account, which is what actually decides the
+ * stored shift_group -- the value inside each fixture is ignored, exactly as it
+ * is for a real handset.
+ */
 function syncAs(shiftGroup, parts) {
   const base = { readings: [], cleaning: [], activities: [], taskLogs: [], equipmentStatus: [] };
   const parsed = parse(syncSchema, { ...base, ...parts });
   if (!parsed.ok) throw new Error(JSON.stringify(parsed.details));
-  return processSync(db, parsed.data);
+  return processSync(db, parsed.data, { displayName: shiftGroup });
 }
 
 function reading(shiftGroup, overrides = {}) {

@@ -387,21 +387,29 @@ describe('data browsing and export', () => {
   beforeEach(() => {
     seedShiftAccount(db);
     tanks = seedTanks(db);
-    const parsed = parse(syncSchema, {
+    // Two shifts means two syncs: shift_group now comes from the authenticated
+    // account, so one batch can only ever belong to one shift.
+    const asShift = (displayName, payload) => {
+      const parsed = parse(syncSchema, payload);
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.details));
+      processSync(db, parsed.data, { displayName });
+    };
+
+    asShift('Shift A', {
       readings: [{
         clientId: '11111111-1111-4111-8111-111111111111', tankId: tanks.t401,
         dcsLevelMm: 5000, tapeLengthMm: 2901, bandulSulfurMm: 35,
         operatorName: 'Budi', shiftGroup: 'Shift A', shiftTime: 'pagi',
         readingAt: '2026-09-02T01:10:00.000Z',
       }],
+    });
+    asShift('Shift B', {
       activities: [{
         clientId: '22222222-2222-4222-8222-222222222222', type: 'OPERATOR',
         description: 'buka valve drain kolom A', activityAt: '2026-09-02T02:00:00.000Z',
         operatorName: 'Budi', shiftGroup: 'Shift B', shiftTime: 'sore',
       }],
     });
-    if (!parsed.ok) throw new Error(JSON.stringify(parsed.details));
-    processSync(db, parsed.data);
   });
 
   it('returns readings joined to their tank code', async () => {
@@ -453,7 +461,7 @@ describe('data browsing and export', () => {
         description: '=cmd|calc', activityAt: '2026-09-02T03:00:00.000Z',
         operatorName: 'Budi', shiftGroup: 'Shift A', shiftTime: 'pagi',
       }],
-    }).data);
+    }).data, { displayName: 'Shift A' });
 
     const text = await (await exportData(get('/api/admin/data/export?type=activities'))).text();
     expect(text).toContain("'=cmd|calc");

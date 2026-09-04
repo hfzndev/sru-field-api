@@ -83,13 +83,64 @@ function payload(parts = {}) {
  * processSync — just without auth. Calling processSync with raw fixtures would
  * skip schema defaults and test a payload shape the route can never produce.
  */
-function sync(parts) {
+function sync(parts, account = { displayName: 'Shift A' }) {
   const parsed = parse(syncSchema, payload(parts));
   if (!parsed.ok) {
     throw new Error(`fixture failed validation: ${JSON.stringify(parsed.details)}`);
   }
-  return processSync(db, parsed.data);
+  return processSync(db, parsed.data, account);
 }
+
+/* -------------------------------------------------------------- attribution */
+
+describe('shift attribution comes from the token', () => {
+  it('ignores a shift_group the payload asked for', () => {
+    // Doc 02 §1.3: "Akun = per shift group". The token already settles which
+    // shift this is, so a handset claiming another one -- by bug or otherwise --
+    // must not be able to write work into that shift's history.
+    sync({ readings: [reading({ shiftGroup: 'Shift D' })] }, { displayName: 'Shift A' });
+
+    const row = db.prepare('SELECT shift_group, shift_time, operator_name FROM tank_readings').get();
+    expect(row.shift_group).toBe('Shift A');
+    // The operator's own choices are still the operator's.
+    expect(row.shift_time).toBe('pagi');
+    expect(row.operator_name).toBe('Budi');
+  });
+
+  it('applies to every record type in the batch', () => {
+    const equipmentId = seedEquipment(db, { tagNumber: 'P-ATTR' });
+    const taskId = seedTask(db, equipmentId);
+
+    sync({
+      readings: [reading({ shiftGroup: 'Shift D' })],
+      activities: [activity({ shiftGroup: 'Shift D' })],
+      cleaning: [cleaning({ shiftGroup: 'Shift D' })],
+      taskLogs: [{
+        clientId: uuid(), taskId, newStatus: 'IN_PROGRESS', progressPct: 50,
+        note: 'x', operatorName: 'Budi', shiftGroup: 'Shift D', shiftTime: 'pagi',
+      }],
+      equipmentStatus: [{
+        clientId: uuid(), equipmentId, newStatus: 'NEED_REPAIR', description: 'x',
+        changedAt: '2026-09-02T03:00:00.000Z',
+        operatorName: 'Budi', shiftGroup: 'Shift D', shiftTime: 'pagi',
+      }],
+    }, { displayName: 'Shift C' });
+
+    for (const table of ['tank_readings', 'activity_logs', 'cleaning_sessions',
+      'maintenance_task_logs', 'equipment_status_log']) {
+      const row = db.prepare(`SELECT shift_group FROM ${table}`).get();
+      expect(row.shift_group, table).toBe('Shift C');
+    }
+  });
+
+  it('refuses to run without an account rather than writing a blank shift', () => {
+    // An empty shift_group would orphan the record: lib/pull.js scopes the
+    // 7-day refill by shift_group, so nothing could ever pull it back.
+    const parsed = parse(syncSchema, payload({ readings: [reading()] }));
+    expect(() => processSync(db, parsed.data, undefined)).toThrow(/authenticated account/);
+    expect(() => processSync(db, parsed.data, { displayName: '' })).toThrow(/authenticated account/);
+  });
+});
 
 /* ------------------------------------------------------------------ readings */
 

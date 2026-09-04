@@ -41,7 +41,8 @@ export async function POST(request) {
       return validationError(undefined, 'Tidak ada data untuk disinkronkan');
     }
 
-    return Response.json(processSync(db, parsed.data));
+    // The account, not the payload, decides shift_group (doc 02 §1.3).
+    return Response.json(processSync(db, parsed.data, auth.account));
   } catch (err) {
     // The transaction has rolled back, so nothing landed and the phone still
     // holds every record. Retrying is safe by construction.
