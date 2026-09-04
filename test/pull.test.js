@@ -310,6 +310,43 @@ describe('equipment status note (doc 02 §1.2)', () => {
     expect(after.statusChangedAt).toBeTruthy();
   });
 
+  it('lets a later admin change win over an earlier one from a handset', () => {
+    // changed_at holds two formats: ISO from the phone, SQLite's space-separated
+    // form from the admin route's column default. Comparing them as text put
+    // every phone entry above every admin entry on the same date, whatever the
+    // real time -- so an admin who corrected a status saw the phone's older
+    // reason keep displaying. Ordering is by received_at, which this server
+    // writes on every row in one format.
+    const equipmentId = seedEquipment(db, { tagNumber: 'P-9302' });
+
+    syncAs('Shift A', {
+      equipmentStatus: [{
+        clientId: randomUUID(), equipmentId, newStatus: 'NEED_REPAIR',
+        description: 'dari HP', changedAt: '2026-09-04T04:38:25.223Z',
+        operatorName: 'Budi', shiftGroup: 'Shift A', shiftTime: 'pagi',
+      }],
+    });
+
+    // The admin's entry lands later (higher id, later received_at) but its
+    // changed_at is SQLite-format and sorts BELOW the phone's ISO on any text
+    // comparison -- and deliberately at an earlier wall-clock second, so a
+    // naive changed_at ordering cannot accidentally get this right.
+    db.prepare(`
+      INSERT INTO equipment_status_log
+        (equipment_id, old_status, new_status, description, changed_by_name,
+         changed_at, received_at)
+      VALUES (?, 'NEED_REPAIR', 'ON_REPAIR', 'dari admin', 'admin',
+              '2026-09-04 04:38:20', datetime('now'))
+    `).run(equipmentId);
+    db.prepare("UPDATE equipment SET status = 'ON_REPAIR' WHERE id = ?").run(equipmentId);
+    stampMaster(db, 'equipment', equipmentId);
+
+    const row = pull(0).master.equipment.find((e) => e.id === equipmentId);
+    expect(row.status).toBe('ON_REPAIR');
+    expect(row.statusNote).toBe('dari admin');
+    expect(row.statusChangedBy).toBe('admin');
+  });
+
   it('reaches the other handsets through the delta, not a full resync', () => {
     const equipmentId = seedEquipment(db, { tagNumber: 'P-9301' });
     stampEverything();

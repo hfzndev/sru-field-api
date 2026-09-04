@@ -68,10 +68,13 @@ export async function GET(request, context) {
   return withAdmin(request, (db) => {
     if (!id) return notFound('Equipment tidak ditemukan');
     const history = db.prepare(`
-      -- id breaks ties: changed_at has one-second resolution, so two changes
-      -- in the same second would otherwise come back in arbitrary order.
+      -- received_at, not changed_at: changed_at is ISO from a handset and
+      -- SQLite-format from this route, and text-comparing the two puts every
+      -- phone entry above every admin entry regardless of real time (see
+      -- lib/pull.js). received_at is server-written and uniform.
+      -- id breaks ties within the same second.
       SELECT * FROM equipment_status_log
-       WHERE equipment_id = ? ORDER BY changed_at DESC, id DESC LIMIT 200
+       WHERE equipment_id = ? ORDER BY received_at DESC, id DESC LIMIT 200
     `).all(id).map((row) => ({
       id: row.id,
       oldStatus: row.old_status,

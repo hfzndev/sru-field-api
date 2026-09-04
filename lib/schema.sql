@@ -201,7 +201,11 @@ CREATE INDEX IF NOT EXISTS idx_readings_shift ON tank_readings(shift_group, read
 CREATE INDEX IF NOT EXISTS idx_activity_shift_time ON activity_logs(shift_group, activity_at DESC);
 CREATE INDEX IF NOT EXISTS idx_cleaning_shift ON cleaning_sessions(shift_group, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tasklog_task ON maintenance_task_logs(task_id, received_at DESC);
+-- Ordering is by received_at (server-written, one format); changed_at holds
+-- both ISO and SQLite form and cannot be compared. The older index stays for
+-- equipment_id lookups.
 CREATE INDEX IF NOT EXISTS idx_eq_status_log ON equipment_status_log(equipment_id, changed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_eq_status_log_received ON equipment_status_log(equipment_id, received_at DESC);
 -- UNIQUE tapi nullable: NULL di SQLite tidak saling bentrok, jadi baris admin
 -- (client_id NULL) bebas berulang sementara retry dari HP tetap idempoten.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_eq_status_log_client ON equipment_status_log(client_id);
