@@ -35,11 +35,18 @@ fi
 # other restores to broken thumbnails.
 cp -r "$DATA_DIR/uploads" "$work/uploads" 2>/dev/null || mkdir -p "$work/uploads"
 
+# data/apk/ is deliberately NOT backed up. A build is reproducible from the repo
+# and the keystore, and at ~70MB a copy in every daily archive for 30 days is
+# two gigabytes protecting something that was never at risk. The keystore is the
+# thing that must not be lost (doc 09 §3), and it does not live here.
+
 archive="$BACKUP_DIR/field_backup_$stamp.tar.gz"
 tar -czf "$archive" -C "$work" field.db uploads
 
 size=$(du -h "$archive" | cut -f1)
-rows=$(sqlite3 "$work/field.db" "SELECT (SELECT COUNT(*) FROM tank_readings) + (SELECT COUNT(*) FROM activity_logs) + (SELECT COUNT(*) FROM cleaning_sessions);")
+# Every table an operator writes to, so the log line does not quietly understate
+# what the archive is protecting when a new record type is added.
+rows=$(sqlite3 "$work/field.db" "SELECT (SELECT COUNT(*) FROM tank_readings) + (SELECT COUNT(*) FROM activity_logs) + (SELECT COUNT(*) FROM cleaning_sessions) + (SELECT COUNT(*) FROM maintenance_task_logs) + (SELECT COUNT(*) FROM equipment_status_log);")
 log "OK $archive ($size, $rows field records)"
 
 deleted=$(find "$BACKUP_DIR" -name 'field_backup_*.tar.gz' -mtime "+$RETENTION_DAYS" -print -delete | wc -l)

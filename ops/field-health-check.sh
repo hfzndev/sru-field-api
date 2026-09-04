@@ -20,8 +20,12 @@ EXTERNAL_URL="${EXTERNAL_URL:-https://ops.sruipal.com/api/health}"
 CONTAINER="${CONTAINER:-sru-field-api}"
 DOMAIN="${DOMAIN:-ops.sruipal.com}"
 DATA_DIR="${DATA_DIR:-/opt/sru-field/data}"
+BACKUP_DIR="${BACKUP_DIR:-/opt/sru-field/backups}"
 DISK_WARN_PCT="${DISK_WARN_PCT:-85}"
 SSL_WARN_DAYS="${SSL_WARN_DAYS:-14}"
+# The daily backup runs at 02:00 WIB. Two days allows for one missed run and a
+# clock that is off, without letting a dead cron sit unnoticed for a week.
+BACKUP_MAX_AGE_HOURS="${BACKUP_MAX_AGE_HOURS:-48}"
 
 # Optional. Without them the script still logs; it just cannot page anyone.
 TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
@@ -66,6 +70,22 @@ if expiry=$(echo | openssl s_client -servername "$DOMAIN" -connect "$DOMAIN:443"
   fi
 fi
 
+# --- backup freshness --------------------------------------------------------
+# A backup cron that dies is invisible until the day it is needed, and field
+# data older than the handsets' 7-day window exists nowhere else (doc 09 §5).
+# The check is on the newest archive's age, not on the cron entry: a cron that
+# runs and fails every night still looks scheduled.
+newest_backup=$(find "$BACKUP_DIR" -name 'field_backup_*.tar.gz' -printf '%T@
+' 2>/dev/null | sort -n | tail -1)
+if [ -z "$newest_backup" ]; then
+  note "no backup archive found in $BACKUP_DIR"
+else
+  age_hours=$(( ( $(date +%s) - ${newest_backup%.*} ) / 3600 ))
+  if [ "$age_hours" -ge "$BACKUP_MAX_AGE_HOURS" ]; then
+    note "newest backup is ${age_hours}h old (expected under ${BACKUP_MAX_AGE_HOURS}h)"
+  fi
+fi
+
 # --- disk --------------------------------------------------------------------
 used_pct=$(df --output=pcent "$DATA_DIR" 2>/dev/null | tail -1 | tr -dc '0-9')
 if [ -n "$used_pct" ] && [ "$used_pct" -ge "$DISK_WARN_PCT" ]; then
@@ -74,7 +94,7 @@ fi
 
 # --- report ------------------------------------------------------------------
 if [ ${#problems[@]} -eq 0 ]; then
-  log "OK container running, local + external health fine, disk ${used_pct:-?}%"
+  log "OK container running, local + external health fine, backup ${age_hours:-?}h old, disk ${used_pct:-?}%"
   exit 0
 fi
 
