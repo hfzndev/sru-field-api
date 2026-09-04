@@ -19,6 +19,7 @@ import { POST as revokeDevice } from '@/app/api/admin/devices/[id]/revoke/route'
 import { GET as browseData } from '@/app/api/admin/data/route';
 import { GET as exportData } from '@/app/api/admin/data/export/route';
 import { GET as listActions } from '@/app/api/admin/actions/route';
+import { POST as uploadApk } from '@/app/api/admin/apk/route';
 import { POST as deviceLogin } from '@/app/api/auth/login/route';
 import { currentDataVersion } from '@/lib/dataversion';
 import { LIMITS } from '@/lib/ratelimit';
@@ -497,6 +498,10 @@ describe('every mutation is audited and stamped', () => {
       { name: 'remove crew', master: true, run: async () => { const { crew } = await (await addCrew(post(`/api/admin/shifts/${shiftId}/crew`, { name: 'Hapus' }), ctx({ id: String(shiftId) }))).json(); return removeCrew(del(`/api/admin/shifts/${shiftId}/crew/${crew.id}`), ctx({ id: String(shiftId), crewId: String(crew.id) })); } },
       { name: 'create task', master: true, run: () => createTask(post('/api/admin/tasks', { equipmentId, title: 'Ganti seal' })) },
       { name: 'update task', master: true, run: () => updateTask(put(`/api/admin/tasks/${taskId}`, { equipmentId, title: 'Ganti bearing', status: 'IN_PROGRESS', progressPct: 40 }), ctx({ id: String(taskId) })) },
+      // Not master: an APK is not pulled by delta, so it must be audited
+      // without moving dataVersion. Multipart, so it builds its own request
+      // rather than using the JSON helper.
+      { name: 'upload apk', master: false, run: () => { const form = new FormData(); form.set('version', '9.9.9'); const zip = Buffer.alloc(64); Buffer.from([0x50, 0x4b, 0x03, 0x04]).copy(zip); form.set('file', new Blob([zip]), 'build.apk'); return uploadApk(new Request(`${BASE}/api/admin/apk`, { method: 'POST', headers: cookie, body: form })); } },
     ];
   }
 

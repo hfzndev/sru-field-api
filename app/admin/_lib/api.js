@@ -9,10 +9,11 @@
  */
 
 async function request(url, options = {}) {
+  const { json = true, ...init } = options;
   const response = await fetch(url, {
     credentials: 'same-origin',
-    headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
-    ...options,
+    headers: init.body && json ? { 'Content-Type': 'application/json' } : undefined,
+    ...init,
   });
 
   if (response.status === 401 && typeof window !== 'undefined') {
@@ -45,6 +46,12 @@ async function request(url, options = {}) {
 export const api = {
   get: (url) => request(url),
   post: (url, body) => request(url, { method: 'POST', body: JSON.stringify(body ?? {}) }),
+  /**
+   * Multipart POST. The Content-Type header is deliberately left unset — the
+   * browser has to write it itself so it can include the multipart boundary,
+   * and setting it by hand produces a body the server cannot parse.
+   */
+  postForm: (url, form) => request(url, { method: 'POST', body: form, json: false }),
   put: (url, body) => request(url, { method: 'PUT', body: JSON.stringify(body ?? {}) }),
   del: (url) => request(url, { method: 'DELETE' }),
 };
