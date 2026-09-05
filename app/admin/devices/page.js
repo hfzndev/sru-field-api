@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { api } from '../_lib/api';
 import { useLoader } from '../_lib/useLoader';
 import { formatDateTime, relative } from '../_lib/format';
-import { Alert, ConfirmDialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
+import { Alert, Card, ConfirmDialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
+import { DeviceMobile } from '../_components/icons';
 
 export default function DevicesPage() {
   const { data, error, reload: load } = useLoader(async () => ({
@@ -51,17 +52,17 @@ export default function DevicesPage() {
       <ApkPanel apks={apks} latest={latest} behind={behind} onDone={(message) => { setToast(message); load(); }} />
 
       {devices.length === 0 ? (
-        <Empty icon="📱" title="Belum ada HP yang login" hint="Daftar terisi setelah operator masuk dari aplikasi." />
+        <Empty icon={DeviceMobile} title="Belum ada HP yang login" hint="Daftar terisi setelah operator masuk dari aplikasi." />
       ) : (
         <>
           <div className="cards-only">
             {devices.map((device) => (
-              <div className="card" key={device.id}>
+              <Card key={device.id}>
                 <div className="card-row">
                   <div className="grow">
                     <div className="card-title">{device.deviceName}</div>
                     <div className="card-meta">
-                      {device.shiftName} · versi {device.appVersion}
+                      {device.shiftName} · versi <span className="mono">{device.appVersion}</span>
                     </div>
                     <div className="card-meta">Terakhir aktif {relative(device.lastSeenAt)}</div>
                   </div>
@@ -74,7 +75,7 @@ export default function DevicesPage() {
                     </button>
                   </div>
                 )}
-              </div>
+              </Card>
             ))}
           </div>
 
@@ -91,13 +92,13 @@ export default function DevicesPage() {
               </thead>
               <tbody>
                 {devices.map((device) => (
-                  <tr key={device.id} style={device.revoked ? { opacity: .55 } : undefined}>
+                  <tr key={device.id} className={device.revoked ? 'is-muted' : undefined}>
                     <td>{device.deviceName}</td>
                     <td>{device.shiftName}</td>
                     <td className="mono">
                       {device.appVersion || '—'}
                       {latest && device.appVersion && device.appVersion !== latest.version && !device.revoked
-                        ? <span className="chip chip-warn" style={{ marginLeft: 8 }}>perlu update</span>
+                        ? <span className="chip chip-warn ml-2">perlu update</span>
                         : null}
                     </td>
                     <td title={formatDateTime(device.lastSeenAt)}>{relative(device.lastSeenAt)}</td>
@@ -112,8 +113,9 @@ export default function DevicesPage() {
             </table>
           </div>
 
-          <div className="card-meta" style={{ marginTop: 12 }}>
-            {live.length} HP aktif dari {devices.length} sesi tercatat.
+          <div className="card-meta mt-3">
+            <span className="mono">{live.length}</span> HP aktif dari{' '}
+            <span className="mono">{devices.length}</span> sesi tercatat.
           </div>
         </>
       )}
@@ -172,7 +174,7 @@ function ApkPanel({ apks, latest, behind, onDone }) {
   }
 
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
+    <Card className="mb-4">
       <div className="card-title">APK</div>
 
       {latest ? (
@@ -186,14 +188,14 @@ function ApkPanel({ apks, latest, behind, onDone }) {
       )}
 
       {behind.length > 0 && (
-        <div className="card-meta" style={{ marginTop: 6 }}>
-          <strong>{behind.length} HP belum update</strong> — {behind.map((d) => d.deviceName).join(', ')}
+        <div className="card-meta mt-2">
+          <strong><span className="mono">{behind.length}</span> HP belum update</strong> — {behind.map((d) => d.deviceName).join(', ')}
         </div>
       )}
 
       <Alert error={error || null} />
 
-      <form onSubmit={publish} style={{ marginTop: 12 }}>
+      <form onSubmit={publish} className="mt-3">
         <Field label="File APK" hint="Hasil gradlew assembleRelease dari workstation.">
           <input
             type="file"
@@ -218,6 +220,6 @@ function ApkPanel({ apks, latest, behind, onDone }) {
           {busy ? 'Mengunggah…' : 'Terbitkan APK'}
         </button>
       </form>
-    </div>
+    </Card>
   );
 }

@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { api } from '../_lib/api';
 import { useLoader } from '../_lib/useLoader';
 import { mm } from '../_lib/format';
-import { Alert, ConfirmDialog, Dialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
+import { Alert, Card, ConfirmDialog, Dialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
+import { Cylinder, ICON, PencilSimple, Plus } from '../_components/icons';
 
 const BLANK = { code: '', name: '', heightMm: '', dcsTag: '', isActive: true };
 
@@ -31,31 +32,37 @@ export default function TanksPage() {
       <PageHead
         title="Tangki"
         subtitle="Tinggi tangki dipakai server untuk menghitung level. Ubah hanya bila dokumen tangki berubah."
-        action={<button className="btn-primary" onClick={() => setEditing(BLANK)}>+ Tambah</button>}
+        action={
+          <button className="btn-primary" onClick={() => setEditing(BLANK)}>
+            <Plus size={ICON.inline} aria-hidden="true" /> Tambah
+          </button>
+        }
       />
 
       {tanks.length === 0 ? (
-        <Empty icon="🛢️" title="Belum ada tangki" hint="Tambah 93T-401 dan 93T-402 untuk mulai." />
+        <Empty icon={Cylinder} title="Belum ada tangki" hint="Tambah 93T-401 dan 93T-402 untuk mulai." />
       ) : tanks.map((tank) => (
-        <div className="card" key={tank.id}>
+        <Card key={tank.id}>
           <div className="card-row">
             <div className="grow">
               {/* Always the full code — never "T-401" (doc 02 §1.1). */}
-              <div className="card-title">{tank.code}</div>
+              <div className="card-title mono">{tank.code}</div>
               <div className="card-meta">
-                {tank.name} · tinggi {mm(tank.heightMm)}
-                {tank.dcsTag ? ` · tag ${tank.dcsTag}` : ''}
+                {tank.name} · tinggi <span className="mono">{mm(tank.heightMm)}</span>
+                {tank.dcsTag ? <> · tag <span className="mono">{tank.dcsTag}</span></> : null}
               </div>
             </div>
             {!tank.isActive && <span className="chip chip-neutral">Nonaktif</span>}
           </div>
           <div className="card-actions">
-            <button className="btn-sm" onClick={() => setEditing(tank)}>Ubah</button>
+            <button className="btn-sm" onClick={() => setEditing(tank)}>
+              <PencilSimple size={ICON.inline} aria-hidden="true" /> Ubah
+            </button>
             {tank.isActive && (
               <button className="btn-sm" onClick={() => setRemoving(tank)}>Nonaktifkan</button>
             )}
           </div>
-        </div>
+        </Card>
       ))}
 
       {editing && (

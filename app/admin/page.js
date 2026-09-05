@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api } from './_lib/api';
 import { formatDate } from './_lib/format';
-import { Alert, Chip, Empty, Loading, PageHead } from './_components/ui';
+import { Alert, Card, Chip, Empty, Loading, PageHead, SectionHead, StatTile } from './_components/ui';
+import { Broom, CaretRight, ClipboardText, Crane, Cylinder, ICON, MoonStars, Wrench } from './_components/icons';
 
 const EQUIPMENT_ORDER = ['NORMAL', 'STANDBY', 'ON_REPAIR', 'NEED_REPAIR'];
 
@@ -17,7 +18,7 @@ export default function DashboardPage() {
   }, []);
 
   if (error) return <Alert error={error} />;
-  if (!data) return <Loading />;
+  if (!data) return <Loading rows={4} />;
 
   const { today, byShift, equipment, openTasks, pendingCleaning } = data;
 
@@ -25,29 +26,21 @@ export default function DashboardPage() {
     <>
       <PageHead title="Dashboard" subtitle={`Hari ini · ${formatDate(data.windowStart)}`} />
 
-      <div className="grid stats">
-        <div className="stat">
-          <div className="n">{today.readings}</div>
-          <div className="l">Pengukuran tangki</div>
-        </div>
-        <div className="stat">
-          <div className="n">{today.activitiesOperator}</div>
-          <div className="l">Aktivitas operator</div>
-        </div>
-        <div className="stat">
-          <div className="n">{today.activitiesContractor}</div>
-          <div className="l">Aktivitas kontraktor</div>
-        </div>
-        <div className="stat">
-          <div className="n">{today.cleaningDone}</div>
-          <div className="l">Bersih-bersih selesai</div>
-        </div>
+      {/*
+        Pengukuran tangki leads: it is the number the shift is judged on, and
+        four identical boxes said nothing about which one that was.
+      */}
+      <div className="stat-grid">
+        <StatTile lead value={today.readings} label="Pengukuran tangki" icon={Cylinder} />
+        <StatTile value={today.activitiesOperator} label="Aktivitas operator" icon={ClipboardText} />
+        <StatTile value={today.activitiesContractor} label="Aktivitas kontraktor" icon={Crane} />
+        <StatTile value={today.cleaningDone} label="Bersih-bersih selesai" icon={Broom} />
       </div>
 
-      <h2 style={{ margin: '22px 0 10px' }}>Per shift hari ini</h2>
+      <SectionHead>Per shift hari ini</SectionHead>
       {byShift.length === 0 ? (
         <Empty
-          icon="🌙"
+          icon={MoonStars}
           title="Belum ada data hari ini"
           hint="Catatan akan muncul di sini begitu operator melakukan sync."
         />
@@ -55,12 +48,14 @@ export default function DashboardPage() {
         <>
           <div className="cards-only">
             {byShift.map((row) => (
-              <div className="card" key={row.shiftGroup}>
+              <Card key={row.shiftGroup}>
                 <div className="card-title">{row.shiftGroup}</div>
                 <div className="card-meta">
-                  {row.readings} pengukuran · {row.activities} aktivitas · {row.cleaning} bersih-bersih
+                  <span className="mono">{row.readings}</span> pengukuran ·{' '}
+                  <span className="mono">{row.activities}</span> aktivitas ·{' '}
+                  <span className="mono">{row.cleaning}</span> bersih-bersih
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
 
@@ -89,31 +84,44 @@ export default function DashboardPage() {
         </>
       )}
 
-      <h2 style={{ margin: '22px 0 10px' }}>Status peralatan</h2>
-      <div className="card">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <SectionHead>Status peralatan</SectionHead>
+      <Card>
+        <div className="row">
           {EQUIPMENT_ORDER.every((status) => !equipment[status]) ? (
-            <span style={{ color: 'var(--muted)' }}>Belum ada equipment terdaftar.</span>
+            <span className="muted">Belum ada equipment terdaftar.</span>
           ) : EQUIPMENT_ORDER.filter((status) => equipment[status]).map((status) => (
-            <span key={status} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span key={status} className="row">
               <Chip value={status} />
-              <strong>{equipment[status]}</strong>
+              <strong className="mono">{equipment[status]}</strong>
             </span>
           ))}
         </div>
-      </div>
+      </Card>
 
-      <div className="grid two" style={{ marginTop: 10 }}>
-        <Link href="/admin/maintenance" className="card" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div className="card-title">Task belum selesai</div>
-          <div className="n" style={{ fontSize: '1.6rem', fontWeight: 680 }}>{openTasks}</div>
-          <div className="card-meta">Ketuk untuk kelola maintenance</div>
-        </Link>
-        <Link href="/admin/data?type=cleaning" className="card" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div className="card-title">Bersih-bersih belum selesai</div>
-          <div className="n" style={{ fontSize: '1.6rem', fontWeight: 680 }}>{pendingCleaning}</div>
-          <div className="card-meta">Menunggu foto sesudah</div>
-        </Link>
+      <SectionHead>Perlu tindakan</SectionHead>
+      <div className="grid two">
+        <Card as={Link} href="/admin/maintenance">
+          <div className="card-title">
+            <span className="ico" aria-hidden="true"><Wrench size={ICON.inline} /></span>
+            Task belum selesai
+          </div>
+          <div className="card-figure mono">{openTasks}</div>
+          <div className="card-meta">
+            Ketuk untuk kelola maintenance
+            <CaretRight size={12} aria-hidden="true" />
+          </div>
+        </Card>
+        <Card as={Link} href="/admin/data?type=cleaning">
+          <div className="card-title">
+            <span className="ico" aria-hidden="true"><Broom size={ICON.inline} /></span>
+            Bersih-bersih belum selesai
+          </div>
+          <div className="card-figure mono">{pendingCleaning}</div>
+          <div className="card-meta">
+            Menunggu foto sesudah
+            <CaretRight size={12} aria-hidden="true" />
+          </div>
+        </Card>
       </div>
     </>
   );

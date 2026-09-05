@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { api } from '../_lib/api';
 import { useLoader } from '../_lib/useLoader';
 import { STATUS_LABEL, formatDate } from '../_lib/format';
-import { Alert, Chip, Dialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
+import { Alert, Card, Chip, Dialog, Empty, Field, Loading, PageHead, Progress, SectionHead, Toast } from '../_components/ui';
+import { ICON, PencilSimple, Plus, Wrench } from '../_components/icons';
 
 const TASK_STATUSES = ['OPEN', 'IN_PROGRESS', 'DONE', 'CANCELLED'];
 
@@ -38,7 +39,7 @@ export default function MaintenancePage() {
             disabled={equipment.length === 0}
             onClick={() => setEditing({ equipmentId: equipment[0]?.id, title: '', description: '', status: 'OPEN', progressPct: 0, dueDate: '' })}
           >
-            + Task
+            <Plus size={ICON.inline} aria-hidden="true" /> Task
           </button>
         }
       />
@@ -48,17 +49,17 @@ export default function MaintenancePage() {
       )}
 
       {tasks.length === 0 ? (
-        <Empty icon="🔧" title="Belum ada task" hint="Buat task agar operator melihatnya di HP." />
+        <Empty icon={Wrench} title="Belum ada task" hint="Buat task agar operator melihatnya di HP." />
       ) : (
         <>
-          <h2 style={{ margin: '4px 0 10px' }}>Belum selesai ({open.length})</h2>
+          <SectionHead>Belum selesai ({open.length})</SectionHead>
           {open.length === 0
-            ? <div className="card"><div className="card-meta">Semua task sudah selesai.</div></div>
+            ? <Card><div className="card-meta">Semua task sudah selesai.</div></Card>
             : open.map((task) => <TaskCard key={task.id} task={task} onEdit={() => setEditing(task)} />)}
 
           {closed.length > 0 && (
             <>
-              <h2 style={{ margin: '22px 0 10px' }}>Selesai ({closed.length})</h2>
+              <SectionHead>Selesai ({closed.length})</SectionHead>
               {closed.map((task) => <TaskCard key={task.id} task={task} onEdit={() => setEditing(task)} />)}
             </>
           )}
@@ -81,12 +82,14 @@ export default function MaintenancePage() {
 
 function TaskCard({ task, onEdit }) {
   return (
-    <div className="card">
+    <Card>
       <div className="card-row">
         <div className="grow">
           <div className="card-title">{task.title}</div>
           <div className="card-meta">
-            {task.equipmentTag ? `${task.equipmentTag} — ${task.equipmentName}` : 'Equipment terhapus'}
+            {task.equipmentTag
+              ? <><span className="mono">{task.equipmentTag}</span>{` — ${task.equipmentName}`}</>
+              : 'Equipment terhapus'}
             {task.dueDate ? ` · target ${formatDate(task.dueDate)}` : ''}
           </div>
           {task.description && <div className="card-meta">{task.description}</div>}
@@ -94,17 +97,14 @@ function TaskCard({ task, onEdit }) {
         <Chip value={task.status} />
       </div>
 
-      <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ flex: 1, height: 8, background: 'var(--neutral-soft)', borderRadius: 999, overflow: 'hidden' }}>
-          <div style={{ width: `${task.progressPct}%`, height: '100%', background: 'var(--accent)' }} />
-        </div>
-        <span className="mono" style={{ fontSize: '.85rem', color: 'var(--muted)' }}>{task.progressPct}%</span>
-      </div>
+      <Progress value={task.progressPct} />
 
       <div className="card-actions">
-        <button className="btn-sm" onClick={onEdit}>Ubah</button>
+        <button className="btn-sm" onClick={onEdit}>
+          <PencilSimple size={ICON.inline} aria-hidden="true" /> Ubah
+        </button>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -178,7 +178,6 @@ function TaskDialog({ task, equipment, onClose, onSaved }) {
           <input
             type="range" min="0" max="100" step="5"
             value={form.progressPct} onChange={set('progressPct')}
-            style={{ minHeight: 44 }}
           />
         </Field>
 

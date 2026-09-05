@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { api } from '../_lib/api';
 import { Alert, Field } from '../_components/ui';
+import { Cylinder } from '../_components/icons';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,6 +31,9 @@ export default function LoginPage() {
   return (
     <div className="login-wrap">
       <form className="card login-card" onSubmit={submit}>
+        <span className="login-mark">
+          <Cylinder size={22} aria-hidden="true" />
+        </span>
         <h1>SRU Field</h1>
         <div className="sub">Masuk sebagai admin</div>
 

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { api } from '../_lib/api';
 import { useLoader } from '../_lib/useLoader';
-import { Alert, ConfirmDialog, Dialog, Field, Loading, PageHead, Toast } from '../_components/ui';
+import { Alert, Card, ChipRemove, ConfirmDialog, Dialog, Field, Loading, PageHead, Toast } from '../_components/ui';
+import { ICON, Plus } from '../_components/icons';
 
 export default function ShiftsPage() {
   const { data: shifts, error, reload: load } = useLoader(
@@ -35,39 +36,30 @@ export default function ShiftsPage() {
       {shifts.map((shift) => {
         const active = shift.crew.filter((c) => c.isActive);
         return (
-          <div className="card" key={shift.id}>
+          <Card key={shift.id}>
             <div className="card-row">
               <div className="grow">
                 <div className="card-title">{shift.displayName}</div>
-                <div className="card-meta">Login: {shift.code.toLowerCase()}</div>
+                <div className="card-meta">Login: <span className="mono">{shift.code.toLowerCase()}</span></div>
               </div>
               {!shift.isActive && <span className="chip chip-neutral">Nonaktif</span>}
             </div>
 
-            <div style={{ marginTop: 10 }}>
-              <div className="card-meta" style={{ marginBottom: 6 }}>
-                Crew ({active.length})
-              </div>
+            <div className="crew mt-3">
+              <div className="card-meta mb-3">Crew ({active.length})</div>
               {active.length === 0 ? (
-                <div className="card-meta" style={{ fontStyle: 'italic' }}>
+                <div className="card-meta crew-none">
                   Belum ada — operator akan mengetik nama manual.
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div className="row">
                   {active.map((member) => (
-                    <span key={member.id} className="chip chip-accent" style={{ gap: 6 }}>
+                    <span key={member.id} className="chip chip-accent">
                       {member.name}
-                      <button
-                        type="button"
-                        aria-label={`Hapus ${member.name}`}
+                      <ChipRemove
+                        label={`Hapus ${member.name}`}
                         onClick={() => setRemovingCrew({ shiftId: shift.id, crew: member })}
-                        style={{
-                          minHeight: 'auto', padding: '0 0 0 6px', border: 0,
-                          background: 'none', color: 'inherit', fontSize: '1rem', lineHeight: 1,
-                        }}
-                      >
-                        ×
-                      </button>
+                      />
                     </span>
                   ))}
                 </div>
@@ -75,10 +67,12 @@ export default function ShiftsPage() {
             </div>
 
             <div className="card-actions">
-              <button className="btn-sm" onClick={() => setCrewFor(shift)}>+ Tambah crew</button>
+              <button className="btn-sm" onClick={() => setCrewFor(shift)}>
+                <Plus size={ICON.inline} aria-hidden="true" /> Tambah crew
+              </button>
               <button className="btn-sm" onClick={() => setPasswordFor(shift)}>Reset password</button>
             </div>
-          </div>
+          </Card>
         );
       })}
 
@@ -155,7 +149,7 @@ function PasswordDialog({ shift, onClose, onSaved }) {
         </Field>
 
         {/* Deliberate behaviour, worth stating so nobody assumes otherwise. */}
-        <div className="hint" style={{ marginBottom: 12 }}>
+        <div className="hint mb-3">
           HP yang sedang login tidak ikut keluar. Untuk memutus akses sebuah HP,
           gunakan tab Devices.
         </div>

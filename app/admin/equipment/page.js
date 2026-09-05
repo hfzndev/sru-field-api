@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../_lib/api';
 import { useLoader } from '../_lib/useLoader';
 import { STATUS_LABEL, formatDateTime } from '../_lib/format';
-import { Alert, Chip, ConfirmDialog, Dialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
+import { Alert, Card, Chip, ConfirmDialog, Dialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
+import { Gear, ICON, PencilSimple, Plus } from '../_components/icons';
 
 const STATUSES = ['NORMAL', 'STANDBY', 'ON_REPAIR', 'NEED_REPAIR'];
 
@@ -32,16 +33,23 @@ export default function EquipmentPage() {
       <PageHead
         title="Equipment"
         subtitle="Perubahan status selalu perlu alasan tertulis dan tersimpan di riwayat."
-        action={<button className="btn-primary" onClick={() => setEditing({ tagNumber: '', name: '', unitKey: '', location: '', isActive: true })}>+ Tambah</button>}
+        action={
+          <button
+            className="btn-primary"
+            onClick={() => setEditing({ tagNumber: '', name: '', unitKey: '', location: '', isActive: true })}
+          >
+            <Plus size={ICON.inline} aria-hidden="true" /> Tambah
+          </button>
+        }
       />
 
       {equipment.length === 0 ? (
-        <Empty icon="⚙️" title="Belum ada equipment" hint="Tambahkan alat yang dipantau operator." />
+        <Empty icon={Gear} title="Belum ada equipment" hint="Tambahkan alat yang dipantau operator." />
       ) : equipment.map((item) => (
-        <div className="card" key={item.id}>
+        <Card key={item.id}>
           <div className="card-row">
             <div className="grow">
-              <div className="card-title">{item.tagNumber} — {item.name}</div>
+              <div className="card-title"><span className="mono">{item.tagNumber}</span> — {item.name}</div>
               <div className="card-meta">
                 {[item.unitKey, item.location].filter(Boolean).join(' · ') || 'Tanpa lokasi'}
                 {item.statusChangedAt ? ` · sejak ${formatDateTime(item.statusChangedAt)}` : ''}
@@ -51,10 +59,12 @@ export default function EquipmentPage() {
           </div>
           <div className="card-actions">
             <button className="btn-sm btn-primary" onClick={() => setChanging(item)}>Ubah status</button>
-            <button className="btn-sm" onClick={() => setEditing(item)}>Ubah data</button>
+            <button className="btn-sm" onClick={() => setEditing(item)}>
+              <PencilSimple size={ICON.inline} aria-hidden="true" /> Ubah data
+            </button>
             {item.isActive && <button className="btn-sm" onClick={() => setRemoving(item)}>Nonaktifkan</button>}
           </div>
-        </div>
+        </Card>
       ))}
 
       {editing && (
@@ -151,16 +161,16 @@ function StatusDialog({ item, onClose, onSaved }) {
 
       {history && history.length > 0 && (
         <>
-          <h3 style={{ marginTop: 22, marginBottom: 8 }}>Riwayat</h3>
+          <h3 className="history-head">Riwayat</h3>
           {history.slice(0, 8).map((entry) => (
-            <div key={entry.id} style={{ paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div key={entry.id} className="history-entry">
+              <div className="row">
                 {entry.oldStatus && <Chip value={entry.oldStatus} />}
                 <span aria-hidden="true">→</span>
                 <Chip value={entry.newStatus} />
               </div>
               <div className="card-meta">{entry.description}</div>
-              <div className="card-meta" style={{ fontSize: '.78rem' }}>
+              <div className="card-meta history-by">
                 {entry.changedByName || 'admin'} · {formatDateTime(entry.changedAt)}
               </div>
             </div>
@@ -219,7 +229,7 @@ function EquipmentDialog({ item, onClose, onSaved }) {
         </Field>
 
         {!isNew && (
-          <div className="hint" style={{ marginBottom: 12 }}>
+          <div className="hint mb-3">
             Status diubah lewat tombol “Ubah status” agar alasannya ikut tercatat.
           </div>
         )}

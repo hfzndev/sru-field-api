@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "SRU Field App \u2014 backend API + admin web (offline-first field data capture, IPAL Sulfur Cilacap)",
+  "description": "SRU Field App — backend API + admin web (offline-first field data capture, IPAL Sulfur Cilacap)",
   "scripts": {
     "dev": "node scripts/version.js && next dev -p 3000",
     "build": "node scripts/version.js && next build",
@@ -17,8 +17,10 @@
     "acceptance": "node tools/acceptance.js"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "bcryptjs": "^3.0.2",
     "better-sqlite3": "^12.2.0",
+    "geist": "^1.7.2",
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

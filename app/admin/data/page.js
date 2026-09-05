@@ -5,7 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import { api } from '../_lib/api';
 import { useLoader } from '../_lib/useLoader';
 import { deviation, formatDateTime, mm, SHIFT_TIME_LABEL, todayWib } from '../_lib/format';
-import { Alert, Chip, Empty, Field, Loading, PageHead } from '../_components/ui';
+import { Alert, Card, Chip, Empty, Field, Loading, PageHead } from '../_components/ui';
+import { DownloadSimple, ICON, MagnifyingGlass } from '../_components/icons';
 
 const TYPES = [
   { value: 'readings', label: 'Pengukuran' },
@@ -50,11 +51,13 @@ function DataPage() {
         title="Data Lapangan"
         subtitle="Hanya bisa dibaca. Catatan dari lapangan tidak pernah diubah atau dihapus dari server."
         action={
-          <a className="btn btn-primary" href={`/api/admin/data/export?${query}`}>⬇ Export CSV</a>
+          <a className="btn btn-primary" href={`/api/admin/data/export?${query}`}>
+            <DownloadSimple size={ICON.inline} aria-hidden="true" /> Export CSV
+          </a>
         }
       />
 
-      <div className="card" style={{ marginBottom: 14 }}>
+      <Card className="mb-4">
         <div className="filters">
           <div className="full">
             <Field label="Jenis">
@@ -88,17 +91,17 @@ function DataPage() {
             <input type="date" value={filters.to} max={todayWib()} onChange={set('to')} />
           </Field>
         </div>
-      </div>
+      </Card>
 
       {error && <Alert error={error} />}
       {!result && !error && <Loading />}
 
       {result && (
         result.rows.length === 0 ? (
-          <Empty icon="🔍" title="Tidak ada data" hint="Coba longgarkan filter atau ubah rentang tanggal." />
+          <Empty icon={MagnifyingGlass} title="Tidak ada data" hint="Coba longgarkan filter atau ubah rentang tanggal." />
         ) : (
           <>
-            <div className="card-meta" style={{ marginBottom: 10 }}>{result.count} catatan</div>
+            <div className="card-meta mb-3"><span className="mono">{result.count}</span> catatan</div>
             {result.rows.map((row) => (
               filters.type === 'readings' ? <ReadingCard key={row.id} row={row} />
                 : filters.type === 'activities' ? <ActivityCard key={row.id} row={row} />
@@ -113,7 +116,7 @@ function DataPage() {
 
 function Attribution({ row }) {
   return (
-    <div className="card-meta" style={{ fontSize: '.78rem' }}>
+    <div className="card-meta attribution">
       {row.operatorName} · {row.shiftGroup || '—'}
       {row.shiftTime ? ` ${SHIFT_TIME_LABEL[row.shiftTime] || row.shiftTime}` : ''}
     </div>
@@ -122,15 +125,15 @@ function Attribution({ row }) {
 
 function ReadingCard({ row }) {
   return (
-    <div className="card">
+    <Card>
       <div className="card-row">
         <div className="grow">
           {/* Full tank code, never abbreviated (doc 02 §1.1). */}
-          <div className="card-title">{row.tankCode || `Tangki #${row.tankId}`}</div>
+          <div className="card-title mono">{row.tankCode || `Tangki #${row.tankId}`}</div>
           <div className="card-meta">{formatDateTime(row.readingAt)}</div>
         </div>
         <div className="right">
-          <div style={{ fontSize: '1.25rem', fontWeight: 660 }} className="mono">{mm(row.levelMm)}</div>
+          <div className="reading-level mono">{mm(row.levelMm)}</div>
           <div className="card-meta mono">DCS {mm(row.dcsLevelMm)} · {deviation(row.deviationMm)}</div>
         </div>
       </div>
@@ -140,13 +143,13 @@ function ReadingCard({ row }) {
       {row.note && <div className="card-meta">{row.note}</div>}
       <Attribution row={row} />
       {row.photoPath && <Thumbs photos={[{ path: row.photoPath, label: 'Foto' }]} />}
-    </div>
+    </Card>
   );
 }
 
 function ActivityCard({ row }) {
   return (
-    <div className="card">
+    <Card>
       <div className="card-row">
         <div className="grow">
           <div className="card-title">{row.description}</div>
@@ -160,13 +163,13 @@ function ActivityCard({ row }) {
         </div>
       )}
       <Attribution row={row} />
-    </div>
+    </Card>
   );
 }
 
 function CleaningCard({ row }) {
   return (
-    <div className="card">
+    <Card>
       <div className="card-row">
         <div className="grow">
           <div className="card-title">{row.location}</div>
@@ -182,7 +185,7 @@ function CleaningCard({ row }) {
           { path: row.afterPhoto, label: 'Sesudah' },
         ]}
       />
-    </div>
+    </Card>
   );
 }
 

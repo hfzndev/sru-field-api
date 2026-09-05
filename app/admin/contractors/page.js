@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { api } from '../_lib/api';
 import { useLoader } from '../_lib/useLoader';
-import { Alert, ConfirmDialog, Dialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
+import { Alert, Card, ConfirmDialog, Dialog, Empty, Field, Loading, PageHead, Toast } from '../_components/ui';
+import { Crane, ICON, PencilSimple, Plus } from '../_components/icons';
 
 export default function ContractorsPage() {
   const { data: contractors, error, reload: load } = useLoader(
@@ -28,17 +29,21 @@ export default function ContractorsPage() {
       <PageHead
         title="Kontraktor"
         subtitle="Daftar ini muncul sebagai pilihan cepat saat operator mencatat aktivitas kontraktor."
-        action={<button className="btn-primary" onClick={() => setEditing({ name: '', isActive: true })}>+ Tambah</button>}
+        action={
+          <button className="btn-primary" onClick={() => setEditing({ name: '', isActive: true })}>
+            <Plus size={ICON.inline} aria-hidden="true" /> Tambah
+          </button>
+        }
       />
 
       {contractors.length === 0 ? (
         <Empty
-          icon="🏗️"
+          icon={Crane}
           title="Belum ada kontraktor"
           hint="Operator masih bisa mengetik nama manual; tambahkan di sini agar jadi pilihan cepat."
         />
       ) : contractors.map((contractor) => (
-        <div className="card" key={contractor.id}>
+        <Card key={contractor.id}>
           <div className="card-row">
             <div className="grow">
               <div className="card-title">{contractor.name}</div>
@@ -46,12 +51,14 @@ export default function ContractorsPage() {
             {!contractor.isActive && <span className="chip chip-neutral">Nonaktif</span>}
           </div>
           <div className="card-actions">
-            <button className="btn-sm" onClick={() => setEditing(contractor)}>Ubah</button>
+            <button className="btn-sm" onClick={() => setEditing(contractor)}>
+              <PencilSimple size={ICON.inline} aria-hidden="true" /> Ubah
+            </button>
             {contractor.isActive && (
               <button className="btn-sm" onClick={() => setRemoving(contractor)}>Nonaktifkan</button>
             )}
           </div>
-        </div>
+        </Card>
       ))}
 
       {editing && (
