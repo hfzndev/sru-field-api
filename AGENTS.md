@@ -98,6 +98,14 @@ outbound, which nothing blocks.
 So: a push to `main` → CI builds and pushes the image → within ~3 minutes this
 host pulls it. You do not deploy by hand unless you are debugging.
 
+One inbound webhook exists and it is not an exception to the above. A release
+cut in `sru-field-app` POSTs to `/api/webhook/apk-release`, which publishes the
+APK — that is a request from github.com through Cloudflare, not from a runner,
+and WAF rule #1 already skips the challenge for `/api/*`. It carries JSON only;
+the server pulls the 67MB asset outbound. **Image deploys still poll. That rule
+is unchanged.** Its three env vars live in `.env.field`; with them unset the
+route answers 503 and the admin upload form is the only way in.
+
 ---
 
 ## 4. Before you start: preconditions

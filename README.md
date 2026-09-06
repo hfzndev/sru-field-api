@@ -296,6 +296,39 @@ Worth trying:
 - **Devices.** App version per handset, recorded at login — the only way to see
   which phones are still on an old APK, since there is no store.
 
+## Publishing an APK
+
+Two ways in, and they end in the same place — a file called
+`sru-field-<x.y.z>.apk` in `data/apk/`, which is the only thing
+`/api/apk/latest` consults.
+
+**By hand.** Admin → Devices → the APK form. Pick the file, type the version,
+upload. Always available, and the fallback whenever the automatic path is not.
+
+**From a GitHub release.** Cut a release in `sru-field-app` and the server
+publishes it on its own:
+
+```bash
+gh release create v0.4.0 releases/sru-field-0.4.0.apk --title "SRU Field 0.4.0"
+```
+
+The tag must be `v<x.y.z>` and the asset must be named exactly
+`sru-field-<x.y.z>.apk` — the tag is the only version source, and an asset whose
+name disagrees with it is ignored rather than stored under a guessed name.
+Drafts and prereleases are ignored too. GitHub POSTs the release event to
+`/api/webhook/apk-release`, the server verifies the HMAC signature, pulls the
+asset outbound from the GitHub API, and runs it through the same ZIP check, size
+cap and no-overwrite rule as the manual upload. Re-delivering a version that is
+already published is a no-op, not an error.
+
+Three env vars turn it on — `APK_WEBHOOK_SECRET` (the same value as in the
+repo's webhook settings), `APK_RELEASE_REPO`, and `GITHUB_TOKEN` while the app
+repo is private. See `.env.example`. With the secret unset the route answers 503
+and nothing is published; nothing else about the server changes.
+
+Because a mismatch is *ignored* rather than reported, check Devices after cutting
+a release. GitHub's Recent Deliveries panel shows what the server answered.
+
 ## Looking at the data directly
 
 ```bash
