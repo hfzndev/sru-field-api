@@ -774,6 +774,19 @@ input[type="range"]:focus { box-shadow: none; }
 .history-entry:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
 .history-by { font-size: var(--text-xs); color: var(--faint); }
 
+/* Stored APK builds (Devices page). One row per build, download on the right.
+   Bordered rather than spaced apart: the list sits inside a card that already
+   has padding, and a second layer of gaps there reads as a second card. */
+.apk-list { border-top: 1px solid var(--border); }
+.apk-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.apk-row .grow { flex: 1; min-width: 0; }
+
 .nowrap { white-space: nowrap; }
 .right { text-align: right; }
 .ml-2 { margin-left: var(--space-2); }

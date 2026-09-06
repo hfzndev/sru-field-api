@@ -177,14 +177,46 @@ function ApkPanel({ apks, latest, behind, onDone }) {
     <Card className="mb-4">
       <div className="card-title">APK</div>
 
-      {latest ? (
-        <div className="card-meta">
-          Terbaru <span className="mono">{latest.version}</span> ·{' '}
-          {Math.round(latest.bytes / 1024 / 1024)}MB · terbit {relative(latest.uploadedAt)}
-          {apks.length > 1 ? ` · ${apks.length} build tersimpan` : ''}
-        </div>
-      ) : (
+      {apks.length === 0 ? (
         <div className="card-meta">Belum ada APK di server. HP tidak akan menawarkan update.</div>
+      ) : (
+        <>
+          <div className="card-meta">
+            {apks.length} build tersimpan. Terbaru <span className="mono">{latest.version}</span>.
+          </div>
+
+          {/* Every stored build, each downloadable.
+              A plain anchor, not a fetch: the browser streams 70MB straight to
+              disk with its own progress, where api.get() would buffer the whole
+              thing in a tab that shows nothing while it does. `download` is
+              honoured because the file is same-origin.
+
+              The *older* builds are listed too, not just the newest. The reason
+              to open this page is usually a build behaving badly, and the answer
+              is either sideloading it onto a bench phone to reproduce it or
+              putting the previous one back on a handset — neither of which a
+              "latest only" link can do. */}
+          <div className="apk-list mt-2">
+            {apks.map((apk, index) => (
+              <div key={apk.filename} className="apk-row">
+                <div className="grow">
+                  <span className="mono">{apk.version}</span>
+                  {index === 0 && <span className="chip chip-ok ml-2">terbaru</span>}
+                  <div className="card-meta">
+                    {Math.round(apk.bytes / 1024 / 1024)}MB · terbit {relative(apk.uploadedAt)}
+                  </div>
+                </div>
+                <a
+                  className="btn btn-sm"
+                  href={`/api/admin/apk/${encodeURIComponent(apk.filename)}`}
+                  download={apk.filename}
+                >
+                  Unduh
+                </a>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {behind.length > 0 && (

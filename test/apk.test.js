@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { GET as adminApks, POST as uploadApk } from '@/app/api/admin/apk/route';
+import { GET as adminDownloadApk } from '@/app/api/admin/apk/[filename]/route';
 import { GET as downloadApk, HEAD as checkApk } from '@/app/api/apk/latest/route';
 import { POST as deviceLogin } from '@/app/api/auth/login/route';
 import { apkDir, compareVersions, isApk, latestApk, listApks, storeApk } from '@/lib/apk';
@@ -176,6 +177,54 @@ describe('GET /api/apk/latest', () => {
     expect((await get({ authorization: 'Bearer nope' })).status).toBe(401);
     // An admin cookie is not a device credential here.
     expect((await get(cookie)).status).toBe(401);
+  });
+});
+
+/* --------------------------------------------------- admin download by name */
+
+describe('GET /api/admin/apk/<filename>', () => {
+  function get(filename, headers = cookie) {
+    return adminDownloadApk(
+      new Request(`${BASE}/api/admin/apk/${filename}`, { headers }),
+      { params: Promise.resolve({ filename }) },
+    );
+  }
+
+  it('streams a named build to an admin', async () => {
+    storeApk(apkBytes(2048), '0.3.0');
+
+    const response = await get('sru-field-0.3.0.apk');
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('application/vnd.android.package-archive');
+    expect(response.headers.get('Content-Disposition')).toContain('attachment');
+    expect((await response.arrayBuffer()).byteLength).toBe(2048);
+  });
+
+  it('serves an older build, not only the newest', async () => {
+    // The reason to open this page is usually a build misbehaving, and the
+    // answer is often the *previous* one — a latest-only link cannot give it.
+    storeApk(apkBytes(64), '0.2.0');
+    storeApk(apkBytes(1024), '0.3.0');
+
+    const response = await get('sru-field-0.2.0.apk');
+    expect(response.status).toBe(200);
+    expect((await response.arrayBuffer()).byteLength).toBe(64);
+  });
+
+  it('404s on a build that is not there', async () => {
+    expect((await get('sru-field-9.9.9.apk')).status).toBe(404);
+  });
+
+  it('refuses anything that is not a build filename', async () => {
+    storeApk(apkBytes(), '0.3.0');
+    for (const name of ['../field.db', '..%2Ffield.db', 'sru-field-0.3.0.apk.part', 'notes.txt', '']) {
+      expect((await get(name)).status).toBe(404);
+    }
+  });
+
+  it('needs an admin session', async () => {
+    storeApk(apkBytes(), '0.3.0');
+    expect((await get('sru-field-0.3.0.apk', {})).status).toBe(401);
   });
 });
 
