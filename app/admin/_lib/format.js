@@ -91,3 +91,20 @@ export function todayWib() {
   }).format(new Date());
   return parts;
 }
+
+/**
+ * "7 dari 12 baris selesai" — how far through a lembar tugas the field is.
+ *
+ * The count, not a percentage: an operator thinks in rows walked, and so does
+ * the supervisor chasing them. Shared by the panel and mirrored on the handset
+ * so both sides phrase progress identically.
+ *
+ * A lembar with no required columns yet has nothing to complete, and showing
+ * "0 dari 4 baris selesai" there would read as work not done rather than as a
+ * design still being written.
+ */
+export function completionText(rowsDone, rows, total) {
+  if (rows === 0) return 'Belum ada baris';
+  if (total === 0) return `${rows} baris · belum ada kolom wajib`;
+  return `${rowsDone} dari ${rows} baris selesai`;
+}

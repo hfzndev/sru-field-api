@@ -166,6 +166,77 @@ CREATE TABLE IF NOT EXISTS maintenance_task_logs (
   received_at TEXT DEFAULT (datetime('now'))
 );
 
+-- ============ LEMBAR TUGAS (task sheets) ============
+-- Tabel yang didefinisikan supervisor lewat admin web: satu lembar = satu
+-- tabel (kolom x baris) yang diisi operator di lapangan (dok 05 §4).
+--
+-- task_sheets + task_sheet_columns berperilaku master (di-pull delta,
+-- soft delete, data_version). task_sheet_rows berasal dari dua arah seperti
+-- equipment_status_log: client_id UUID bila lahir di HP, NULL bila dibuat
+-- admin. task_sheet_cells murni data lapangan dan APPEND-ONLY -- nilai berlaku
+-- = filled_at terbaru per (row, column), sehingga dua operator offline yang
+-- mengisi sel sama tidak pernah menjadi konflik yang harus diselesaikan.
+
+CREATE TABLE IF NOT EXISTS task_sheets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'OPEN',      -- OPEN/DONE/CANCELLED
+  due_date TEXT,
+  assigned_shift TEXT DEFAULT '',           -- '' = semua shift, atau 'Shift A'
+  allow_operator_rows INTEGER NOT NULL DEFAULT 1,  -- operator boleh menambah baris
+  created_by INTEGER,                       -- admin_users.id
+  is_active INTEGER NOT NULL DEFAULT 1,
+  data_version INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS task_sheet_columns (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sheet_id INTEGER NOT NULL,
+  label TEXT NOT NULL,                      -- 'Nama Equipment' / 'Foto Wide'
+  kind TEXT NOT NULL DEFAULT 'TEXT',        -- LABEL/TEXT/NUMBER/PHOTO/CHECK/CHOICE
+  is_required INTEGER NOT NULL DEFAULT 1,
+  options TEXT DEFAULT '',                  -- JSON array (CHOICE) / satuan (NUMBER)
+  example_photo TEXT DEFAULT '',            -- foto contoh dari supervisor (PHOTO)
+  hint TEXT DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  data_version INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS task_sheet_rows (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  client_id TEXT,                           -- UUIDv4 bila asalnya HP; NULL bila dari admin
+  sheet_id INTEGER NOT NULL,
+  label TEXT NOT NULL,                      -- identitas baris, mis. '93P-101A'
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  added_by_name TEXT DEFAULT '',            -- 'admin' atau nama operator penambah
+  is_active INTEGER NOT NULL DEFAULT 1,
+  data_version INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS task_sheet_cells (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  client_id TEXT NOT NULL UNIQUE,           -- idempotency; baris admin pun mencetak satu
+  sheet_id INTEGER NOT NULL,
+  row_id INTEGER NOT NULL,                  -- hasil resolusi row_client_id di server
+  column_id INTEGER NOT NULL,
+  value_text TEXT DEFAULT '',
+  value_number REAL,
+  photo_path TEXT DEFAULT '',               -- relatif thd data/uploads/
+  filled_by_name TEXT DEFAULT '',           -- 'admin' atau nama operator
+  shift_group TEXT DEFAULT '',
+  shift_time TEXT DEFAULT '',
+  filled_at TEXT NOT NULL,                  -- jam operator mengisi (penentu nilai berlaku)
+  received_at TEXT DEFAULT (datetime('now'))
+);
+
 -- ============ AUTH & META ============
 
 CREATE TABLE IF NOT EXISTS device_tokens (
@@ -218,3 +289,15 @@ CREATE INDEX IF NOT EXISTS idx_contractors_dataversion ON contractors(data_versi
 CREATE INDEX IF NOT EXISTS idx_shiftaccounts_dataversion ON shift_accounts(data_version);
 CREATE INDEX IF NOT EXISTS idx_shiftcrew_dataversion ON shift_crew(data_version);
 CREATE INDEX IF NOT EXISTS idx_tasks_dataversion ON maintenance_tasks(data_version);
+CREATE INDEX IF NOT EXISTS idx_sheets_dataversion ON task_sheets(data_version);
+CREATE INDEX IF NOT EXISTS idx_sheetcols_dataversion ON task_sheet_columns(data_version);
+CREATE INDEX IF NOT EXISTS idx_sheetrows_dataversion ON task_sheet_rows(data_version);
+
+-- Lembar tugas: urutan tampil, dan lookup "nilai berlaku" per sel.
+CREATE INDEX IF NOT EXISTS idx_sheetcols_sheet ON task_sheet_columns(sheet_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_sheetrows_sheet ON task_sheet_rows(sheet_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_sheetcells_current ON task_sheet_cells(sheet_id, row_id, column_id, filled_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sheetcells_received ON task_sheet_cells(shift_group, received_at DESC);
+-- UNIQUE tapi nullable, sama seperti equipment_status_log: baris buatan admin
+-- (client_id NULL) bebas berulang, retry dari HP tetap idempoten.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sheetrows_client ON task_sheet_rows(client_id);

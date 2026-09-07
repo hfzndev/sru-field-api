@@ -324,6 +324,169 @@ async function main() {
     return `${payload.devices.length} devices`;
   });
 
+  /* --------------------------------------- doc 05 §4: lembar tugas end-to-end */
+
+  console.log(bold('\n  Lembar tugas\n'));
+
+  let sheetId;
+  let wideColumnId;
+  await check('05 §4', 'supervisor publishes a lembar with columns and rows', async () => {
+    const created = await http('POST', '/api/admin/sheets', {
+      cookie: adminCookie,
+      body: {
+        title: `Foto Pompa ACC ${Date.now() % 100000}`,
+        description: 'Foto setiap pompa dari jauh dan dekat',
+        columns: [
+          { label: 'Foto Wide', kind: 'PHOTO' },
+          { label: 'Foto Close', kind: 'PHOTO' },
+        ],
+        rows: [{ label: '93P-101A' }, { label: '93P-101B' }],
+      },
+    });
+    expect(created.status === 201, `sheet create ${created.status}`);
+    sheetId = created.payload.sheet.id;
+
+    const detail = await http('GET', `/api/admin/sheets/${sheetId}`, { cookie: adminCookie });
+    expect(detail.payload.columns.length === 2, 'columns missing');
+    expect(detail.payload.rows.length === 2, 'rows missing');
+    wideColumnId = detail.payload.columns[0].id;
+    return `${detail.payload.columns.length} kolom, ${detail.payload.rows.length} baris`;
+  });
+
+  let seededRowId;
+  await check('05 §4', 'the handset pulls the design, columns and all', async () => {
+    const { status, payload } = await http('GET', '/api/pull?since=0', { token });
+    expect(status === 200, `got ${status}`);
+
+    const sheet = payload.master.sheets.find((s) => s.id === sheetId);
+    expect(sheet, 'lembar not in the delta');
+    // Stamping the sheet without its children is the failure that would ship a
+    // handset a lembar with no columns to fill (lib/sheets.js stampSheet).
+    expect(payload.master.sheetColumns.some((c) => c.sheetId === sheetId), 'columns not in the delta');
+
+    const rows = payload.master.sheetRows.filter((row) => row.sheetId === sheetId);
+    expect(rows.length === 2, `${rows.length} rows in the delta`);
+    expect(rows.every((row) => row.clientId), 'a row arrived with no client_id to address it by');
+    seededRowId = rows[0].id;
+    return `${rows.length} baris, ${payload.master.sheetColumns.length} kolom`;
+  });
+
+  const newRowClientId = uuid();
+  const cellOnNewRow = uuid();
+  const cellOnSeededRow = uuid();
+  await check('05 §4', 'an operator fills a cell and adds a row in one batch', async () => {
+    const now = new Date().toISOString();
+    const body = {
+      sheetRows: [{
+        clientId: newRowClientId, sheetId, label: '93P-104C',
+        operatorName: 'Budi', shiftGroup: 'Shift A', shiftTime: 'pagi',
+      }],
+      sheetCells: [
+        {
+          clientId: cellOnSeededRow, sheetId, rowId: seededRowId, columnId: wideColumnId,
+          valueText: 'terisi dari lapangan', filledAt: now,
+          operatorName: 'Budi', shiftGroup: 'Shift A', shiftTime: 'pagi',
+        },
+        // Addressed by the row this same batch is creating. The ordering
+        // guarantee in lib/sync.js processSync is what makes it resolvable.
+        {
+          clientId: cellOnNewRow, sheetId, rowClientId: newRowClientId, columnId: wideColumnId,
+          valueText: 'pompa baru ditemukan', filledAt: now,
+          operatorName: 'Budi', shiftGroup: 'Shift A', shiftTime: 'pagi',
+        },
+      ],
+    };
+
+    const { status, payload } = await http('POST', '/api/sync', { token, body });
+    expect(status === 200, `got ${status}`);
+    expect((payload.errors ?? []).length === 0, JSON.stringify(payload.errors));
+    expect(payload.acked.length === 3, `${payload.acked.length} acked`);
+
+    const resolved = db.prepare('SELECT row_id FROM task_sheet_cells WHERE client_id = ?').get(cellOnNewRow);
+    const added = db.prepare('SELECT id, added_by_name FROM task_sheet_rows WHERE client_id = ?').get(newRowClientId);
+    expect(resolved.row_id === added.id, 'cell did not resolve to the row created beside it');
+    expect(added.added_by_name === 'Budi', `added_by_name ${added.added_by_name}`);
+    return 'row + 2 cells, client_id resolved';
+  });
+
+  await check('07 §3', 'replaying the lembar batch duplicates nothing', async () => {
+    const now = new Date().toISOString();
+    const body = {
+      sheetRows: [{
+        clientId: newRowClientId, sheetId, label: '93P-104C',
+        operatorName: 'Budi', shiftGroup: 'Shift A', shiftTime: 'pagi',
+      }],
+      sheetCells: [{
+        clientId: cellOnNewRow, sheetId, rowClientId: newRowClientId, columnId: wideColumnId,
+        valueText: 'pompa baru ditemukan', filledAt: now,
+        operatorName: 'Budi', shiftGroup: 'Shift A', shiftTime: 'pagi',
+      }],
+    };
+
+    const { payload } = await http('POST', '/api/sync', { token, body });
+    expect(payload.acked.length === 0, `${payload.acked.length} acked on replay`);
+    expect(payload.duplicates.length === 2, `${payload.duplicates.length} duplicates`);
+
+    const rows = db.prepare('SELECT COUNT(*) n FROM task_sheet_rows WHERE sheet_id = ?').get(sheetId).n;
+    expect(rows === 3, `${rows} rows after replay`);
+    return 'row and cell both returned as duplicates';
+  });
+
+  await check('05 §4', 'the supervisor sees the operator-added row and its cells', async () => {
+    const { payload } = await http('GET', `/api/admin/sheets/${sheetId}`, { cookie: adminCookie });
+    const added = payload.rows.find((row) => row.label === '93P-104C');
+    expect(added, 'operator row missing from the grid');
+    expect(added.addedByName === 'Budi', `addedByName ${added.addedByName}`);
+    expect(payload.cells.length === 2, `${payload.cells.length} cells in the grid`);
+    return `${payload.rows.length} baris, ${payload.cells.length} sel`;
+  });
+
+  await check('07 §4', 'a correction wins without destroying the original', async () => {
+    // Append-only: the admin fill is a second row in the table and the grid
+    // shows the later one. Nothing is overwritten and nothing is merged.
+    const filled = await http('POST', `/api/admin/sheets/${sheetId}/cells`, {
+      cookie: adminCookie,
+      body: { rowId: seededRowId, columnId: wideColumnId, valueText: 'dikoreksi supervisor' },
+    });
+    expect(filled.status === 201, `admin fill ${filled.status}`);
+
+    const kept = db.prepare(
+      'SELECT COUNT(*) n FROM task_sheet_cells WHERE row_id = ? AND column_id = ?',
+    ).get(seededRowId, wideColumnId).n;
+    expect(kept === 2, `${kept} writes kept for that cell`);
+
+    const current = filled.payload.cells.find(
+      (c) => c.rowId === seededRowId && c.columnId === wideColumnId,
+    );
+    expect(current.valueText === 'dikoreksi supervisor', `grid shows "${current.valueText}"`);
+    expect(current.filledByName === 'admin', `filled by ${current.filledByName}`);
+    return '2 writes kept, latest wins';
+  });
+
+  await check('05 §4', 'a closed lembar refuses new work but keeps what landed', async () => {
+    await http('PUT', `/api/admin/sheets/${sheetId}`, {
+      cookie: adminCookie,
+      body: { title: 'Foto Pompa ACC (ditutup)', status: 'DONE' },
+    });
+
+    const { payload } = await http('POST', '/api/sync', {
+      token,
+      body: {
+        sheetCells: [{
+          clientId: uuid(), sheetId, rowId: seededRowId, columnId: wideColumnId,
+          valueText: 'terlambat', filledAt: new Date().toISOString(),
+          operatorName: 'Budi', shiftGroup: 'Shift A', shiftTime: 'pagi',
+        }],
+      },
+    });
+    expect(payload.errors.length === 1, `${payload.errors.length} errors`);
+    expect(payload.errors[0].error.code === 'SHEET_CLOSED', payload.errors[0].error.code);
+
+    const kept = db.prepare('SELECT COUNT(*) n FROM task_sheet_cells WHERE sheet_id = ?').get(sheetId).n;
+    expect(kept === 3, `${kept} cells kept`);
+    return 'SHEET_CLOSED, 3 sel tetap tersimpan';
+  });
+
   /* ------------------------------------------------ doc 08 §10: security gate */
 
   console.log(bold('\n  Security checklist (doc 08 §10)\n'));

@@ -807,3 +807,108 @@ input[type="range"]:focus { box-shadow: none; }
     transition-duration: .01ms !important;
   }
 }
+
+/* ---------------------------------------------------------- lembar tugas */
+/*
+ * The supervisor's grid: rows of equipment down, the columns they defined
+ * across. It is the one genuinely two-dimensional thing in the panel, so it is
+ * also the one place that scrolls sideways — inside its own container, never
+ * the page body. The first column is sticky because losing sight of which pump
+ * a row belongs to is what makes a wide table unusable.
+ */
+
+.sheet-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  /* Momentum scrolling on a phone, and a visible edge so it is obvious there
+     is more table to the right. */
+  -webkit-overflow-scrolling: touch;
+}
+
+.sheet-grid { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+
+.sheet-grid th,
+.sheet-grid td {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  vertical-align: top;
+}
+
+.sheet-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+  font-weight: 620;
+  white-space: nowrap;
+}
+
+.sheet-grid th.sheet-rowhead,
+.sheet-grid td.sheet-rowhead {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  min-width: 150px;
+  font-weight: 620;
+}
+
+.sheet-grid thead th.sheet-rowhead { z-index: 3; background: var(--surface-2); }
+.sheet-grid tbody tr:last-child td { border-bottom: 0; }
+
+.sheet-colkind { display: block; font-weight: 400; color: var(--muted); font-size: var(--text-xs); }
+
+/* A cell is a button so the whole area is the target, not just the text. */
+.cell {
+  display: block;
+  width: 100%;
+  min-width: 110px;
+  min-height: 44px;
+  padding: var(--space-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cell:hover { background: var(--surface-2); }
+.cell-filled { border-style: solid; border-color: var(--border); background: var(--surface-2); }
+.cell-blank { color: var(--faint); }
+.cell-thumb { display: block; width: 92px; height: 62px; object-fit: cover; border-radius: var(--radius-sm); }
+.cell-by { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); }
+
+/* The builder's column list — one editable strip per column being designed. */
+.builder-item {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+  background: var(--surface-2);
+}
+
+.builder-item .grow { flex: 1; min-width: 0; }
+.builder-item .field { margin-bottom: var(--space-2); }
+
+.example-thumb {
+  width: 108px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  display: block;
+}
+
+/* "7 dari 12 baris selesai" — the number the operator is actually working
+   toward, so it reads as a sentence rather than as a percentage. */
+.sheet-count { color: var(--muted); font-size: var(--text-sm); margin-top: var(--space-1); }

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { closeDb, getDb } from '@/lib/db';
 import { resetLastSeenThrottle } from '@/lib/auth';
 import { resetRateLimits } from '@/lib/ratelimit';
+import { stampSheet } from '@/lib/sheets';
 
 /**
  * Test fixtures.
@@ -104,4 +105,50 @@ export function postRequest(url, body, headers = {}) {
 
 export function withBearer(token) {
   return { authorization: `Bearer ${token}` };
+}
+
+/**
+ * A lembar tugas, built the way the admin builder builds one: a sheet plus its
+ * columns and rows in one go. Returns the ids the tests need to address cells.
+ */
+export function seedSheet(db, {
+  title = 'Foto Pompa Area 93',
+  status = 'OPEN',
+  assignedShift = '',
+  allowOperatorRows = 1,
+  isActive = 1,
+  columns = [
+    { label: 'Foto Wide', kind: 'PHOTO', isRequired: 1 },
+    { label: 'Foto Close', kind: 'PHOTO', isRequired: 1 },
+  ],
+  rows = ['93P-101A', '93P-101B'],
+} = {}) {
+  const sheetId = Number(db.prepare(`
+    INSERT INTO task_sheets (title, status, assigned_shift, allow_operator_rows, is_active)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(title, status, assignedShift, allowOperatorRows, isActive).lastInsertRowid);
+
+  const columnStmt = db.prepare(`
+    INSERT INTO task_sheet_columns (sheet_id, label, kind, is_required, options, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  const columnIds = columns.map((c, i) => Number(columnStmt.run(
+    sheetId, c.label, c.kind, c.isRequired ?? 1, JSON.stringify(c.options ?? []), i,
+  ).lastInsertRowid));
+
+  const rowStmt = db.prepare(
+    'INSERT INTO task_sheet_rows (sheet_id, label, sort_order, added_by_name) VALUES (?, ?, ?, ?)',
+  );
+  const rowIds = rows.map((label, i) => Number(rowStmt.run(sheetId, label, i, 'admin').lastInsertRowid));
+
+  // Stamped exactly as the admin create route stamps it, so a test that reads
+  // a delta sees the same cursor a real handset would.
+  stampSheet(db, sheetId);
+
+  return { sheetId, columnIds, rowIds };
+}
+
+/** A photo path shaped the way /api/upload produces them (lib/validation PHOTO_PATH). */
+export function samplePhotoPath(seed = 'a') {
+  return `uploads/${seed.repeat(32).slice(0, 32)}.jpg`;
 }

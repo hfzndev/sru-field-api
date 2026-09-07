@@ -6,6 +6,7 @@ import { api } from '../_lib/api';
 import { ThemeToggle } from './ui';
 import {
   Crane,
+  ClipboardText,
   Cylinder,
   DeviceMobile,
   FolderOpen,
@@ -28,6 +29,7 @@ const TABS = [
   { href: '/admin/contractors', label: 'Kontraktor', Icon: Crane },
   { href: '/admin/shifts', label: 'Shift', Icon: HardHat },
   { href: '/admin/maintenance', label: 'Maintenance', Icon: Wrench },
+  { href: '/admin/sheets', label: 'Tugas', Icon: ClipboardText },
   { href: '/admin/data', label: 'Data', Icon: FolderOpen },
   { href: '/admin/devices', label: 'Devices', Icon: DeviceMobile },
 ];
